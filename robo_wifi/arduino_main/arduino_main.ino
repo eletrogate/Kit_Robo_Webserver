@@ -1,3 +1,6 @@
+/* @autor: Eletrogate
+   @licença: GNU GENERAL PUBLIC LICENSE Version 3 */
+
 #include "macros.h" // inclui cabeçalho com as macros
 
 bool dado_novo;                                  //
