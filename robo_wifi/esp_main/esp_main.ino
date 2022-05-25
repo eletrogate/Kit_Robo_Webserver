@@ -1,3 +1,6 @@
+/* @autor: Eletrogate
+   @licença: GNU GENERAL PUBLIC LICENSE Version 3 */
+
 #include <DNSServer.h>
 #include "src/WiFiManager/WiFiManager.h"
 #include <ESP8266WiFi.h>
@@ -40,7 +43,7 @@ void setup() {
   server.addHandler(&ws); // indica que o servidor será tratado de acordo com o WebSocket
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ // quando alguém se conectar ao servidor do joystick
-    request->send(SPIFFS, "/index.html");  });                 // envia o script salvo em htmlResponse
+    request->send(SPIFFS, "/index.html");  });                 // envia o script salvo em /index.html
 
   server.on("/IP", HTTP_GET, [](AsyncWebServerRequest *request) {                  // quando alguém se conectar ao servidor do ip
     request->send(200, "text/plain", "Seu IP: " + WiFi.localIP().toString());  }); // envia o IP recebido pelo roteador
@@ -96,7 +99,7 @@ void loop() {
 
   if(controle_auto_rec == true && (WiFi.getMode() != WIFI_STA || WiFi.status() != WL_CONNECTED))  { // se estiver desconectado em modo STA
     controle_auto_rec = false;      // indica que houve a desconexão
-    digitalWrite(PIN_OUT, HIGH);  } // aviso ao Arduino para que os motores sejam freiados
+    digitalWrite(PIN_OUT, HIGH);  } // avisa ao Arduino para que os motores sejam parados
 
   if(millis() - tempo_decorrido >= INTERVALO_WIFI) { // a cada INTERVALO_WIFI ms
     tempo_decorrido = millis(); // atualiza o tempo
