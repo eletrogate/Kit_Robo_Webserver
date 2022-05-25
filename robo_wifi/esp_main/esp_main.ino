@@ -1,5 +1,5 @@
 #include <DNSServer.h>
-#include <WiFiManager.h>
+#include "src/WiFiManager/WiFiManager.h"
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
 #define   WEBSERVER_H
@@ -11,6 +11,7 @@
 
 bool controle_auto_rec = false;
 bool conectado = false;
+bool flag_saiu = false;
 unsigned int tempo_decorrido = 0;
 
 AsyncWebServer server(80);  // instancia o servidor e o atribui à porta 80
@@ -73,21 +74,21 @@ void setup() {
   server.on("/blog.png", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/blog.png", "image/png");
   });
-  
   //****************************************************************************************
 
-  WiFiManager wifiManager;  wifiManager.setDebugOutput(false); wifiManager.setHttpPort(81); // cria o WiFiManager na porta 81 e desativa a depuração serial
-  wifiManager.autoConnect("ROBO_ELETROGATE","12345678"); wifiManager.stopConfigPortal();    // abre o WiFiManager e, ao fim, o desconecta
-
-  WiFi.softAP("ROBO_ELETROGATE", "12345678"); // abre a AP para controle e verificação de IP
-  server.begin();                             // inicia o servidor
+  WiFiManager wifiManager;  wifiManager.setDebugOutput(false); wifiManager.setHttpPort(81);  // cria o WiFiManager na porta 81 e desativa a depuração serial
+  wifiManager.autoConnect("ROBO_ELETROGATE","12345678"); flag_saiu = wifiManager.getHasExited(); wifiManager.stopConfigPortal();  // abre o WiFiManager e, ao fim, o desconecta
+  if(flag_saiu) wifiManager.resetSettings();  //  se clicar em "exit", as credenciais salvas serao apagadas
+  
+  while(!WiFi.softAP("ROBO_ELETROGATE", "12345678")) delay(1000); // abre a AP para controle e verificação de IP
+  server.begin();                                                 // inicia o servidor
 
   Serial.begin(9600); // inicia a serial
 }
 
 void loop() {
 
-  if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED && controle_auto_rec == false)  { // se estiver conectado ao WiFi pela primeira vez neste loop
+  if(WiFi.getMode() == WIFI_STA && WiFi.status() ==   WL_CONNECTED && controle_auto_rec == false)  { // se estiver conectado ao WiFi pela primeira vez neste loop
     WiFi.setAutoReconnect(true);    // ativa a autoreconexão
     WiFi.persistent(true);          // ativa a persistência
     controle_auto_rec = true;       // indica que a robustez de WiFi já foi configurada após a reconexão
