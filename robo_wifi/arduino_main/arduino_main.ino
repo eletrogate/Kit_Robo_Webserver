@@ -7,7 +7,7 @@ bool dado_novo;                                  //
 unsigned short i, v, a, q;                       // declara variaveis
 char vel[4], angulo[4];                          // que serão usadas
 unsigned short vel_int, ang_int, val_mA, val_mB; // ao longo do código
-float speed;                                     //
+float vel_float;                                     //
 char aux;                                        //
 byte quadrante;                                  //
 
@@ -45,17 +45,17 @@ void loop() {
     
 
   if(dado_novo) { // se recebeu um novo dado
-    if(v < 3) vel[v + 1] = '\0'; else vel[3] = '\0';  vel_int = atoi(vel);  speed = vel_int / 100.0; // transforma a velocidade em um inteiro e, então, em um float entre 0 e 1
+    if(v < 3) vel[v + 1] = '\0'; else vel[3] = '\0';  vel_int = atoi(vel);  vel_float = vel_int / 100.0; // transforma a velocidade em um inteiro e, então, em um float entre 0 e 1
     if(a < 3) angulo[a + 1] = '\0'; else angulo[3] = '\0';  ang_int = atoi(angulo);                  // transforma o angulo em um inteiro
 
   if(ang_int < 90) quadrante = 1; else if(ang_int < 180) quadrante = 2; else if(ang_int < 270) quadrante = 3; else if(ang_int < 360) quadrante = 4; // determina em qual quadrante o joystick está
   
   if(quadrante == 1 || quadrante == 4) {                                      // se estiver na direita
-    val_mB = (int) (speed * 255);                                             // o motor B recebe a velocidade indicada no joystick
-    val_mA = (int) (speed * 255 * (1.0 - cos(ang_int * PI / 180.0) / 2.0)); } // o motor A recebe esta velocidade reduzida proporcionalmente ao cosseno do ângulo
+    val_mB = (int) (vel_float * 255);                                             // o motor B recebe a velocidade indicada no joystick
+    val_mA = (int) (vel_float * 255 * (1.0 - cos(ang_int * PI / 180.0) / 2.0)); } // o motor A recebe esta velocidade reduzida proporcionalmente ao cosseno do ângulo
   else {                                                                      // caso não
-    val_mB = (int) (speed * 255 * (1.0 + cos(ang_int * PI / 180.0) / 2.0));   // o motor B recebe a velocidade acrescida proporcionalmente ao cosseno (que será negativo) do ângulo
-    val_mA = (int) (speed * 255); }                                           // o motor A recebe a velocidade indicada no joystick
+    val_mB = (int) (vel_float * 255 * (1.0 + cos(ang_int * PI / 180.0) / 2.0));   // o motor B recebe a velocidade acrescida proporcionalmente ao cosseno (que será negativo) do ângulo
+    val_mA = (int) (vel_float * 255); }                                           // o motor A recebe a velocidade indicada no joystick
 
   if(quadrante < 3) {                                     // se estiver em cima/na frente
     analogWrite(INT2_, val_mA); analogWrite(INT1_, 0);    // aciona os motores
