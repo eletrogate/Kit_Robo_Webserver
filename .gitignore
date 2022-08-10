@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+# Specific files
+a_fazer_interna.txt
