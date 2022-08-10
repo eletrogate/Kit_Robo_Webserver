@@ -1,27 +1,18 @@
 var connection = new WebSocket(`ws://${window.location.hostname}/ws`);
-function send(n, o) {
-    n = toNumber(n);
-    o = toNumber(o);
-    connection.send(n.toString().concat(" ", o.toString()));
+
+function send(velocidade, angulo_graus) {
+    vel_pI = parseInt(velocidade);
+    ang_pI = parseInt(angulo_graus);
+    connection.send(vel_pI.toString().concat(" ", ang_pI.toString()));
 }
-(connection.onopen = function () {
-    connection.send("Connect " + new Date());
-}),
-    (connection.onerror = function (n) {
-        console.log("WebSocket Error ", n), alert("WebSocket Error ", n);
-    }),
-    (connection.onmessage = function (n) {
-        console.log("Server: ", n.data);
-    });
 
-function toNumber(value) {
-    return (typeof parseInt(value) === 'number' && parseInt(value)) ? parseInt(value) : 0;
-};
+(connection.onopen = function () { connection.send("Connect " + new Date()); }),
+(connection.onerror = function (n) { console.log("WebSocket Error ", n), alert("WebSocket Error ", n); }),
+(connection.onmessage = function (n) { console.log("Server: ", n.data); });
 
-var canvas, ctx, width, height, radius, x_orig, y_orig, largura, altura;       // ************** TAMANHO E MARGEM DO JOYSTICK **************
+var canvas, ctx, width, height, radius, x_orig, y_orig, largura, altura;
 function resize() {
 
-    // mapeia as dimensões vertical e horizontal da janela do browser
     largura = window.innerWidth
         || document.documentElement.clientWidth
         || document.body.clientWidth;
@@ -35,14 +26,11 @@ function resize() {
         height = altura * 0.65;
     }
 
-    // área útil celular (Redmi Note 8): 980x1793
-
     if (altura > largura) {
         width = largura;
         radius = width * 0.23
         height = largura;
     }
-
 
     ctx.canvas.width = width;
     ctx.canvas.height = height;
@@ -50,10 +38,9 @@ function resize() {
     joystick(width / 2, height / 2);
 }
 
-function background() {         // ************** CORES DO JOYSTICK **************
+function background() {
     x_orig = width / 2;
     y_orig = height / 2;
-
     ctx.beginPath();
     ctx.arc(x_orig, y_orig, radius + 20, 0, Math.PI * 2, true);
     ctx.fillStyle = '#0e37cd';
@@ -72,16 +59,16 @@ function joystick(width, height) {
 
 window.addEventListener("load", () => {
     (canvas = document.getElementById("canvas")),
-        (ctx = canvas.getContext("2d")),
-        resize(),
-        document.addEventListener("mousedown", startDrawing),
-        document.addEventListener("mouseup", stopDrawing),
-        document.addEventListener("mousemove", Draw),
-        document.addEventListener("touchstart", startDrawing),
-        document.addEventListener("touchend", stopDrawing),
-        document.addEventListener("touchcancel", stopDrawing),
-        document.addEventListener("touchmove", Draw),
-        window.addEventListener("resize", resize);
+    (ctx = canvas.getContext("2d")),
+    resize(),
+    document.addEventListener("mousedown", startDrawing),
+    document.addEventListener("mouseup", stopDrawing),
+    document.addEventListener("mousemove", Draw),
+    document.addEventListener("touchstart", startDrawing),
+    document.addEventListener("touchend", stopDrawing),
+    document.addEventListener("touchcancel", stopDrawing),
+    document.addEventListener("touchmove", Draw),
+    window.addEventListener("resize", resize);
 });
 
 let coord = { x: 0, y: 0 };
@@ -101,7 +88,6 @@ function is_it_in_the_circle() {
     else return false
 }
 
-
 function startDrawing(event) {
     paint = true;
     getPosition(event);
@@ -113,7 +99,6 @@ function startDrawing(event) {
     }
 }
 
-
 function stopDrawing() {
     paint = false;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -124,16 +109,18 @@ function stopDrawing() {
 
 function Draw(t) {
     if (paint) {
-        var e, n, i;
+        var velocidade, angulo_graus, angulo_rad, x_abs, y_abs;
         ctx.clearRect(0, 0, canvas.width, canvas.height), background();
-        var o = Math.atan2(coord.y - y_orig, coord.x - x_orig);
-        (e = -1 == Math.sign(o) ? Math.round((180 * -o) / Math.PI) : Math.round(360 - (180 * o) / Math.PI)),
-            is_it_in_the_circle() ? (joystick(coord.x, coord.y), (n = coord.x), (i = coord.y)) : joystick((n = radius * Math.cos(o) + x_orig), (i = radius * Math.sin(o) + y_orig)),
-            getPosition(t);
-        var c = Math.round((100 * Math.sqrt(Math.pow(n - x_orig, 2) + Math.pow(i - y_orig, 2))) / radius),
-            a = Math.round(n - x_orig),
-            r = Math.round(i - y_orig);
-        send(c, e);
+        angulo_rad = Math.atan2(coord.y - y_orig, coord.x - x_orig);
+
+        (angulo_graus = -1 == Math.sign(angulo_rad) ? Math.round((180 * -angulo_rad) / Math.PI)
+            : Math.round(360 - (180 * angulo_rad) / Math.PI)),
+        is_it_in_the_circle() ? (joystick(coord.x, coord.y), (x_abs = coord.x), (y_abs = coord.y))
+            : joystick((x_abs = radius * Math.cos(angulo_rad) + x_orig), (y_abs = radius * Math.sin(angulo_rad) + y_orig)),
+        getPosition(t);
+
+        velocidade = Math.round((100 * Math.sqrt(Math.pow(x_abs - x_orig, 2) + Math.pow(y_abs - y_orig, 2))) / radius),
+        send(velocidade, angulo_graus);
     } else {
         send(0, 0);
     }
