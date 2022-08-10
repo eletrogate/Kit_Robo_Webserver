@@ -1,5 +1,7 @@
 var connection = new WebSocket(`ws://${window.location.hostname}/ws`);
 function send(n, o) {
+    n = toNumber(n);
+    o = toNumber(o);
     connection.send(n.toString().concat(" ", o.toString()));
 }
 (connection.onopen = function () {
@@ -12,6 +14,10 @@ function send(n, o) {
         console.log("Server: ", n.data);
     });
 
+function toNumber(value) {
+    return (typeof parseInt(value) === 'number' && parseInt(value)) ? parseInt(value) : 0;
+};
+
 var canvas, ctx, width, height, radius, x_orig, y_orig, largura, altura;       // ************** TAMANHO E MARGEM DO JOYSTICK **************
 function resize() {
 
@@ -22,14 +28,14 @@ function resize() {
     altura = window.innerHeight
         || document.documentElement.clientHeight
         || document.body.clientHeight;
-   
+
     if (largura > altura) {
         width = largura * 0.3646;
         radius = width * 0.2;
-        height = altura * 0.65; 
+        height = altura * 0.65;
     }
 
-// área útil celular (Redmi Note 8): 980x1793
+    // área útil celular (Redmi Note 8): 980x1793
 
     if (altura > largura) {
         width = largura;
@@ -37,7 +43,7 @@ function resize() {
         height = largura;
     }
 
-    
+
     ctx.canvas.width = width;
     ctx.canvas.height = height;
     background();
@@ -47,14 +53,14 @@ function resize() {
 function background() {         // ************** CORES DO JOYSTICK **************
     x_orig = width / 2;
     y_orig = height / 2;
-    
+
     ctx.beginPath();
     ctx.arc(x_orig, y_orig, radius + 20, 0, Math.PI * 2, true);
     ctx.fillStyle = '#0e37cd';
     ctx.fill();
 }
 
-function joystick(width, height) {                  
+function joystick(width, height) {
     ctx.beginPath();
     ctx.arc(width, height, radius, 0, Math.PI * 2, true);
     ctx.fillStyle = '#ffffff';
@@ -87,7 +93,7 @@ function getPosition(event) {
     var mouse_y = e.clientY || e.touches[0].clientY;
     coord.x = mouse_x - canvas.offsetLeft;
     coord.y = mouse_y - canvas.offsetTop;
-    }
+}
 
 function is_it_in_the_circle() {
     var current_radius = Math.sqrt(Math.pow(coord.x - x_orig, 2) + Math.pow(coord.y - y_orig, 2));
@@ -117,7 +123,7 @@ function stopDrawing() {
 }
 
 function Draw(t) {
-    if(paint)   {
+    if (paint) {
         var e, n, i;
         ctx.clearRect(0, 0, canvas.width, canvas.height), background();
         var o = Math.atan2(coord.y - y_orig, coord.x - x_orig);
@@ -127,6 +133,8 @@ function Draw(t) {
         var c = Math.round((100 * Math.sqrt(Math.pow(n - x_orig, 2) + Math.pow(i - y_orig, 2))) / radius),
             a = Math.round(n - x_orig),
             r = Math.round(i - y_orig);
+        send(c, e);
+    } else {
+        send(0, 0);
     }
-    send(c, e);
 }
