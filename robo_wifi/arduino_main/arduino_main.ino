@@ -19,7 +19,7 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);   // de entrada e saida
   digitalWrite(LED_BUILTIN, LOW); //
   
-  while(!Serial.available()); aux = Serial.read(); // espera a primeira conexão e descarta o ruído
+  //-*while(!Serial.available()); aux = Serial.read(); // espera a primeira conexão e descarta o ruído
   
   digitalWrite(PIN_OUT, HIGH);    // avisa ao ESP que pode receber dados
 }
