@@ -9,8 +9,8 @@
 #include "macros.h"
 
 bool controle_auto_rec = false;
-bool conectado = false;
-bool restart = false;
+bool evt_conectado = false;
+bool srv_restart = false;
 unsigned int tempo_decorrido = 0;
 
 const char* PARAM_INPUT_1 = "ssid";
@@ -40,11 +40,16 @@ bool caractere_valido_data(char c)  {
 }
 
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)  { // definição da tratativa de evento de servidor assíncrono
-  if(type == WS_EVT_DATA && !digitalRead(PIN_IN)) {                                                                                 // se for o recebimento de dados e o Arduino puder receber
-      char* data_ = (char*) data;                                                                                                   // registra todos os dados recebidos do servidor
-      for(size_t i = 0; caractere_valido_data(data_[i]) && i < TAMANHO_MAXIMO_DADOS; i ++)                                          // enquanto for um caractere valido e o tamanho for inferior ao maximo
-        Serial.write(data_[i]);                                                                                                     // envia este dado na serial
-      Serial.write(CARACTERE_SEPARADOR); }                                                                                          // envia o caractere separador para tratamento
+  if(type == WS_EVT_DATA) {                                                                                 // se for o recebimento de dados e o Arduino puder receber
+    char* data_ = (char*) data;                                                                                                   // registra todos os dados recebidos do servidor
+    Serial.write(INICIALIZADOR);
+    for(size_t i = 0; caractere_valido_data(data_[i]) && i < TAMANHO_MAXIMO_DADOS; i ++)                                          // enquanto for um caractere valido e o tamanho for inferior ao maximo
+      Serial.write(data_[i]);                                                                                                     // envia este dado na serial
+    Serial.write(FINALIZADOR); }                                                                                          // envia o caractere separador para tratamento
+  else if(type == WS_EVT_CONNECT) {
+    digitalWrite(PIN_OUT, LOW);
+    evt_conectado = true;
+  }
 } 
 
 String readFile(fs::FS &fs, const char * path) {
@@ -69,14 +74,14 @@ bool initWiFi() {
   if (!WiFi.config(localIP, localGateway, subnet)) return false;
 
   WiFi.begin(ssid.c_str(), pass.c_str());
-  delay(INTERVALO_WIFI);
+  delay(TEMPO_INICIO_WIFI);
   return WiFi.status() == WL_CONNECTED;
 }
 
 void setup() {
   pinMode(PIN_IN, INPUT);     // inicia a entrada
   pinMode(PIN_OUT, OUTPUT);   // e a saída
-  digitalWrite(PIN_OUT, LOW); // digitais
+  digitalWrite(PIN_OUT, HIGH); // digitais
 
   LittleFS.begin();
 
@@ -148,8 +153,8 @@ void setup() {
             writeFile(LittleFS, gatewayPath, gateway.c_str()); }
         }
       }
-      restart = true;
-      request->send(200, "text/plain", "Done. ESP will restart, connect to your router and go to IP address: " + ip);
+      srv_restart = true;
+      request->send(200, "text/plain", "Credenciais cadastradas!");
     });
   }
   server.begin(); // inicia o servidor
@@ -157,17 +162,20 @@ void setup() {
 }
 
 void loop() {
-  if(restart) ESP.restart();
+  if(srv_restart) ESP.restart();
+
+  if(evt_conectado && digitalRead(PIN_IN)) {
+    digitalWrite(PIN_OUT, HIGH);
+    evt_conectado = false;
+  }
 
   if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED && controle_auto_rec == false)  { // se estiver conectado ao WiFi pela primeira vez neste loop
     WiFi.setAutoReconnect(true);    // ativa a autoreconexão
     WiFi.persistent(true);          // ativa a persistência
-    controle_auto_rec = true;       // indica que a robustez de WiFi já foi configurada após a reconexão
-    digitalWrite(PIN_OUT, LOW);  }  // avisa ao Arduino que pode voltar a acionar os motores
+    controle_auto_rec = true;   }   // indica que a robustez de WiFi já foi configurada após a reconexão
 
-  if(controle_auto_rec == true && (WiFi.getMode() != WIFI_STA || WiFi.status() != WL_CONNECTED))  { // se estiver desconectado ou em modo diferente de STA
+  if(controle_auto_rec == true && (WiFi.getMode() != WIFI_STA || WiFi.status() != WL_CONNECTED))   // se estiver desconectado ou em modo diferente de STA
     controle_auto_rec = false;      // indica que houve a desconexão
-    digitalWrite(PIN_OUT, HIGH);  } // avisa ao Arduino para que os motores sejam parados
 
   if(millis() - tempo_decorrido >= INTERVALO_WIFI) { // a cada INTERVALO_WIFI ms
     tempo_decorrido = millis(); // atualiza o tempo
