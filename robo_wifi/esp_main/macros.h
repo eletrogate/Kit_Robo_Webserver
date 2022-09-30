@@ -1,7 +1,0 @@
-#define PIN_IN  2
-#define PIN_OUT 0
-#define TEMPO_INICIO_WIFI 5000
-#define INTERVALO_WIFI 15000
-#define TAMANHO_MAXIMO_DADOS 7
-#define INICIALIZADOR ':'
-#define FINALIZADOR '\n'

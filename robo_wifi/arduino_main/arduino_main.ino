@@ -1,45 +1,45 @@
 /* @autor: Eletrogate
    @licença: GNU GENERAL PUBLIC LICENSE Version 3 */
 
-#include "macros.h" // inclui cabeçalho com as macros
+#include "constantes.h" // inclui cabeçalho com as macros
 
 bool dado_novo;
 uint8_t v, a, r, vel_int, val_mA, val_mB, quadrante;
 char vel[4], angulo[4], recebido[16], c;
 unsigned  ang_int;
 
-bool caractere_valido(char c)  {
+bool caractereValido(char c)  {
   return ((c >= '0' && c <= '9') || c == ' ');  // verifica se o caractere recebido do webserver é um número ou um espaço
 }
 
 void setup() {
   delay(500);
   Serial.begin(9600);
-  pinMode(PIN_IN, INPUT);         // inicia os pinos
-  pinMode(PIN_OUT, OUTPUT);
-  digitalWrite(PIN_OUT, LOW);
+  pinMode(pinIn, INPUT);         // inicia os pinos
+  pinMode(pinOut, OUTPUT);
+  digitalWrite(pinOut, LOW);
   pinMode(LED_BUILTIN, OUTPUT);   // de entrada e saida
   digitalWrite(LED_BUILTIN, LOW); //
 }
 
 void loop() {
-  if(!digitalRead(PIN_IN)) {
+  if(!digitalRead(pinIn)) {
     Serial.end();
     digitalWrite(LED_BUILTIN, HIGH);
-    digitalWrite(PIN_OUT, LOW);
+    digitalWrite(pinOut, LOW);
     delay(100);
     Serial.begin(9600);
-    digitalWrite(PIN_OUT, HIGH);
+    digitalWrite(pinOut, HIGH);
   }
 
-  if(Serial.available() && Serial.read() == INICIALIZADOR) {
+  if(Serial.available() && Serial.read() == caractereInicio) {
     dado_novo = true;
     r = -1;
-    while((c = Serial.read()) != FINALIZADOR)
-      if(caractere_valido(c))
+    while((c = Serial.read()) != caractereFinal)
+      if(caractereValido(c))
         recebido[++ r] = c;
 
-    for(v = 0; recebido[v] != SEPARADOR; v ++)
+    for(v = 0; recebido[v] != caractereSepara; v ++)
       vel[v] = recebido[v];
     vel[v] = '\0';
 
@@ -64,10 +64,10 @@ void loop() {
       val_mA = (uint8_t) vel_int; }                                             // o motor A recebe a velocidade indicada no joystick
 
     if(quadrante < 3) {                                     // se estiver em cima/na frente
-      analogWrite(INT2_, val_mA); analogWrite(INT1_, 0);    // aciona os motores
-      analogWrite(INT4_, val_mB); analogWrite(INT3_, 0);  } // para frente
+      analogWrite(in2, val_mA); analogWrite(in1, 0);    // aciona os motores
+      analogWrite(in4, val_mB); analogWrite(in3, 0);  } // para frente
     else {                                                  // senão
-      analogWrite(INT2_, 0); analogWrite(INT1_, val_mA);    // aciona os motores
-      analogWrite(INT4_, 0); analogWrite(INT3_, val_mB);  } // para trás
+      analogWrite(in2, 0); analogWrite(in1, val_mA);    // aciona os motores
+      analogWrite(in4, 0); analogWrite(in3, val_mB);  } // para trás
   } dado_novo = false;                                      // indica que o dado já foi tratado
 }

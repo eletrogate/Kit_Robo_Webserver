@@ -6,27 +6,17 @@
 #include <ESPAsyncWebServer.h>
 #include <ESPAsyncTCP.h>
 #include "LittleFS.h"
-#include "macros.h"
+#include "constantes.h"
 
-bool controle_auto_rec = false;
-bool evt_conectado = false;
-bool srv_restart = false;
-unsigned int tempo_decorrido = 0;
-
-const char* PARAM_INPUT_1 = "ssid";
-const char* PARAM_INPUT_2 = "pass";
-const char* PARAM_INPUT_3 = "ip";
-const char* PARAM_INPUT_4 = "gateway";
+bool controleAutoRec = false;
+bool evtConectado = false;
+bool srvRestart = false;
+unsigned tempoDecorrido = 0;
 
 String ssid;
 String pass;
 String ip;
 String gateway;
-
-const char* ssidPath = "/ssid.txt";
-const char* passPath = "/pass.txt";
-const char* ipPath = "/ip.txt";
-const char* gatewayPath = "/gateway.txt";
 
 AsyncWebServer server(80);  // instancia o servidor e o atribui à porta 80
 AsyncWebSocket ws("/ws");   // instancia o websocket
@@ -35,24 +25,24 @@ IPAddress localIP;
 IPAddress localGateway;
 IPAddress subnet(255, 255, 0, 0);
 
-bool caractere_valido_data(char c)  {
+bool caractereValido(char c)  {
   return ((c >= '0' && c <= '9') || c == ' ');  // verifica se o caractere recebido do webserver é um número ou um espaço
 }
 
-void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len)  { // definição da tratativa de evento de servidor assíncrono
+void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)  { // definição da tratativa de evento de servidor assíncrono
   if(type == WS_EVT_DATA) {                                                                                 // se for o recebimento de dados e o Arduino puder receber
-    char* data_ = (char*) data;                                                                                                   // registra todos os dados recebidos do servidor
-    Serial.write(INICIALIZADOR);
-    for(size_t i = 0; caractere_valido_data(data_[i]) && i < TAMANHO_MAXIMO_DADOS; i ++)                                          // enquanto for um caractere valido e o tamanho for inferior ao maximo
+    char *data_ = (char*) data;                                                                                                   // registra todos os dados recebidos do servidor
+    Serial.write(caractereInicio);
+    for(uint8_t i = 0; caractereValido(data_[i]) && i < tamanhoMaximoDados; i ++)                                          // enquanto for um caractere valido e o tamanho for inferior ao maximo
       Serial.write(data_[i]);                                                                                                     // envia este dado na serial
-    Serial.write(FINALIZADOR); }                                                                                          // envia o caractere separador para tratamento
+    Serial.write(caractereFinal); }                                                                                          // envia o caractere separador para tratamento
   else if(type == WS_EVT_CONNECT) {
-    digitalWrite(PIN_OUT, LOW);
-    evt_conectado = true;
+    digitalWrite(pinOut, LOW);
+    evtConectado = true;
   }
 } 
 
-String readFile(fs::FS &fs, const char * path) {
+String readFile(fs::FS &fs, const char *path) {
   File file = fs.open(path, "r");
   String fileContent;
   if(file.available()) fileContent = file.readStringUntil('\n');
@@ -74,14 +64,14 @@ bool initWiFi() {
   if (!WiFi.config(localIP, localGateway, subnet)) return false;
 
   WiFi.begin(ssid.c_str(), pass.c_str());
-  delay(TEMPO_INICIO_WIFI);
+  delay(tempoInicioWiFi);
   return WiFi.status() == WL_CONNECTED;
 }
 
 void setup() {
-  pinMode(PIN_IN, INPUT);     // inicia a entrada
-  pinMode(PIN_OUT, OUTPUT);   // e a saída
-  digitalWrite(PIN_OUT, HIGH); // digitais
+  pinMode(pinIn, INPUT);     // inicia a entrada
+  pinMode(pinOut, OUTPUT);   // e a saída
+  digitalWrite(pinOut, HIGH); // digitais
 
   LittleFS.begin();
 
@@ -96,9 +86,6 @@ void setup() {
   if(initWiFi()) {
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ // quando alguém se conectar ao servidor do joystick
       request->send(LittleFS, "/index.html");  });                 // envia o script salvo em /index.html
-
-    server.on("/IP", HTTP_GET, [](AsyncWebServerRequest *request) {                  // quando alguém se conectar ao servidor do ip
-      request->send(200, "text/plain", "Seu IP: " + WiFi.localIP().toString());  }); // envia o IP recebido pelo roteador
 
     //************** as chamadas do método a seguir constroem a pagina do joystick ******************//
 
@@ -132,28 +119,28 @@ void setup() {
     server.serveStatic("/", LittleFS, "/");
     
     server.on("/", HTTP_POST, [](AsyncWebServerRequest *request) {
-      int params = request->params();
-      for(int i=0;i<params;i++) {
+      uint8_t params = request->params();
+      for(uint8_t i = 0; i < params; i ++) {
         AsyncWebParameter* p = request->getParam(i);
         if(p->isPost()) {
-          if (p->name() == PARAM_INPUT_1) {
+          if(p->name() == paramInput1) {
             ssid = p->value();
             writeFile(LittleFS, ssidPath, ssid.c_str()); }
 
-          if (p->name() == PARAM_INPUT_2) {
+          if(p->name() == paramInput2) {
             pass = p->value();
             writeFile(LittleFS, passPath, pass.c_str()); }
 
-          if (p->name() == PARAM_INPUT_3) {
+          if(p->name() == paramInput3) {
             ip = p->value();
             writeFile(LittleFS, ipPath, ip.c_str()); }
 
-          if (p->name() == PARAM_INPUT_4) {
+          if(p->name() == paramInput4) {
             gateway = p->value();
             writeFile(LittleFS, gatewayPath, gateway.c_str()); }
         }
       }
-      srv_restart = true;
+      srvRestart = true;
       request->send(200, "text/plain", "Credenciais cadastradas!");
     });
   }
@@ -162,23 +149,23 @@ void setup() {
 }
 
 void loop() {
-  if(srv_restart) ESP.restart();
+  if(srvRestart) ESP.restart();
 
-  if(evt_conectado && digitalRead(PIN_IN)) {
-    digitalWrite(PIN_OUT, HIGH);
-    evt_conectado = false;
+  if(evtConectado && digitalRead(pinIn)) {
+    digitalWrite(pinOut, HIGH);
+    evtConectado = false;
   }
 
-  if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED && controle_auto_rec == false)  { // se estiver conectado ao WiFi pela primeira vez neste loop
+  if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED && controleAutoRec == false)  { // se estiver conectado ao WiFi pela primeira vez neste loop
     WiFi.setAutoReconnect(true);    // ativa a autoreconexão
     WiFi.persistent(true);          // ativa a persistência
-    controle_auto_rec = true;   }   // indica que a robustez de WiFi já foi configurada após a reconexão
+    controleAutoRec = true;   }   // indica que a robustez de WiFi já foi configurada após a reconexão
 
-  if(controle_auto_rec == true && (WiFi.getMode() != WIFI_STA || WiFi.status() != WL_CONNECTED))   // se estiver desconectado ou em modo diferente de STA
-    controle_auto_rec = false;      // indica que houve a desconexão
+  if(controleAutoRec == true && (WiFi.getMode() != WIFI_STA || WiFi.status() != WL_CONNECTED))   // se estiver desconectado ou em modo diferente de STA
+    controleAutoRec = false;      // indica que houve a desconexão
 
-  if(millis() - tempo_decorrido >= INTERVALO_WIFI) { // a cada INTERVALO_WIFI ms
-    tempo_decorrido = millis(); // atualiza o tempo
+  if(millis() - tempoDecorrido >= intervaloWiFi) { // a cada intervaloWiFi ms
+    tempoDecorrido = millis(); // atualiza o tempo
     if(WiFi.status() != WL_CONNECTED && WiFi.getMode() == WIFI_STA) // se estiver desconectado e em modo STA
       WiFi.reconnect(); } // tenta reconectar
 }

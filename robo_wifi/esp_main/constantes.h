@@ -1,0 +1,15 @@
+const uint8_t pinIn = 2;
+const uint8_t pinOut = 0;
+const uint8_t tamanhoMaximoDados = 7;
+const unsigned tempoInicioWiFi = 5000;
+const unsigned intervaloWiFi = 15000;
+const char caractereInicio = ':';
+const char caractereFinal = '\n';
+const char *paramInput1 = "ssid";
+const char *paramInput2 = "pass";
+const char *paramInput3 = "ip";
+const char *paramInput4 = "gateway";
+const char *ssidPath = "/ssid.txt";
+const char *passPath = "/pass.txt";
+const char *ipPath = "/ip.txt";
+const char *gatewayPath = "/gateway.txt";

@@ -1,0 +1,9 @@
+const uint8_t in1 = 3;
+const uint8_t in2 = 5;
+const uint8_t in3 = 9;
+const uint8_t in4 = 10;
+const uint8_t pinIn = 4;
+const uint8_t pinOut = 2;
+const char caractereInicio = ':';
+const char caractereSepara = ' ';
+const char caractereFinal = '\n';
