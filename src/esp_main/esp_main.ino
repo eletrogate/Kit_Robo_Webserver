@@ -108,43 +108,42 @@ void setup() {
 
   server.on("/blog.png", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/blog.png", "image/png"); });
+    
   //****************************************************************************************
+  
+  server.on("/WM", HTTP_GET, [](AsyncWebServerRequest *request) {  // quando se conectar à pagina do gerenciador
+    request->send(LittleFS, "/wifimanager.html", "text/html"); }); // envia /wifimanager.html
+  
+  server.on("/managerStyle.css", HTTP_GET, [](AsyncWebServerRequest *request) { // indica o arquivo
+    request->send(LittleFS, "/managerStyle.css", "text/css"); });               // de elementos estéticos
+  
+  server.on("/WM", HTTP_POST, [](AsyncWebServerRequest *request) {
+    uint8_t params = request->params();                         //  registra a quantidade de parametros
+    for(uint8_t i = 0; i < params; i ++) {                      //  para cada parametro
+      AsyncWebParameter* p = request->getParam(i);              //  registra o parametro
+      if(p->isPost()) {                                         //  se for post
+        if(p->name() == paramInput1) {                          //  se o nome estiver de acordo
+          ssid = p->value();                                    //  registra o dado
+          writeFile(LittleFS, ssidPath, ssid.c_str()); }        //  escreve no sistema de arquivos
 
-  if(!initWiFi()) {
-    WiFi.softAP("ROBO_ELETROGATE", NULL); // inicia a AP
+        if(p->name() == paramInput2) {                          //  se o nome estiver de acordo
+          pass = p->value();                                    //  registra o dado
+          writeFile(LittleFS, passPath, pass.c_str()); }        //  escreve no sistema de arquivos
 
-    server.on("/WM", HTTP_GET, [](AsyncWebServerRequest *request) {  // quando se conectar à pagina do gerenciador
-      request->send(LittleFS, "/wifimanager.html", "text/html"); }); // envia /wifimanager.html
-    
-    server.on("/manager_style.css", HTTP_GET, [](AsyncWebServerRequest *request) { // indica o arquivo
-      request->send(LittleFS, "/manager_style.css", "text/css"); });               // de elementos estéticos
-    
-    server.on("/WM", HTTP_POST, [](AsyncWebServerRequest *request) {
-      uint8_t params = request->params();                         //  registra a quantidade de parametros
-      for(uint8_t i = 0; i < params; i ++) {                      //  para cada parametro
-        AsyncWebParameter* p = request->getParam(i);              //  registra o parametro
-        if(p->isPost()) {                                         //  se for post
-          if(p->name() == paramInput1) {                          //  se o nome estiver de acordo
-            ssid = p->value();                                    //  registra o dado
-            writeFile(LittleFS, ssidPath, ssid.c_str()); }        //  escreve no sistema de arquivos
+        if(p->name() == paramInput3) {                          //  se o nome estiver de acordo
+          ip = p->value();                                      //  registra o dado
+          writeFile(LittleFS, ipPath, ip.c_str()); }            //  escreve no sistema de arquivos
 
-          if(p->name() == paramInput2) {                          //  se o nome estiver de acordo
-            pass = p->value();                                    //  registra o dado
-            writeFile(LittleFS, passPath, pass.c_str()); }        //  escreve no sistema de arquivos
-
-          if(p->name() == paramInput3) {                          //  se o nome estiver de acordo
-            ip = p->value();                                      //  registra o dado
-            writeFile(LittleFS, ipPath, ip.c_str()); }            //  escreve no sistema de arquivos
-
-          if(p->name() == paramInput4) {                          //  se o nome estiver de acordo
-            gateway = p->value();                                 //  registra o dado
-            writeFile(LittleFS, gatewayPath, gateway.c_str()); }  //  escreve no sistema de arquivos
-        }
+        if(p->name() == paramInput4) {                          //  se o nome estiver de acordo
+          gateway = p->value();                                 //  registra o dado
+          writeFile(LittleFS, gatewayPath, gateway.c_str()); }  //  escreve no sistema de arquivos
       }
-      srvRestart = true;  // registra que o chip deve reiniciar
-      request->send(200, "text/plain", "Credenciais cadastradas!"); // gera uma página avisando que as credenciais foram cadastradas
-    });
-  }
+    }
+    srvRestart = true;  // registra que o chip deve reiniciar
+    request->send(200, "text/plain", "Credenciais cadastradas!"); // gera uma página avisando que as credenciais foram cadastradas
+  });  
+
+  if(!initWiFi()) WiFi.softAP("ROBO_ELETROGATE", NULL); // se não conseguir se conectar a uma rede, inicia a AP
   
   server.begin();     // inicia o servidor
   Serial.begin(9600); // inicia a serial
