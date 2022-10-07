@@ -11,6 +11,7 @@
 bool controleAutoRec = false; //
 bool evtConectado = false;    // declara e inicia as variaveis
 bool srvRestart = false;      // de controle
+bool controleWiFi = false;    //
 unsigned tempoDecorrido = 0;  //
 
 String ssid;    //
@@ -42,30 +43,39 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
   }
 } 
 
-String readFile(fs::FS &fs, const char *path) {
-  File file = fs.open(path, "r");                                 // abre o arquivo para leitura
-  String fileContent;                                             // declara variavel para armazenamento do conteudo
-  if(file.available()) fileContent = file.readStringUntil('\n');  // se disponivel, salva o conteudo na variavel
-  file.close();                                                   // fecha o arquivo
-  return fileContent;                                             // retorna o conteudo
-}
-
-void writeFile(fs::FS &fs, const char * path, const char * message) {
-  File file = fs.open(path, "w"); // abre o arquivo para escrita
-  file.print(message);            // escreve o conteudo no arquivo                          
+void appendFile(fs::FS &fs, const char * path, const char * message) {
+  File file = fs.open(path, "a"); // abre o arquivo para escrita
+  file.print(message);            // escreve o conteudo no arquivo
+  file.print(caractereFinal);     // escreve o caractere finalizador                     
   file.close();                   // fecha o arquivo
 }
 
 bool initWiFi() {
-  WiFi.mode(WIFI_STA);                                            // configura o modo como STA
-  localIP.fromString(ip.c_str());                                 // define o IP
-  localGateway.fromString(gateway.c_str());                       // define o Gateway
+  WiFi.mode(WIFI_STA); // configura o modo como STA
 
-  if (!WiFi.config(localIP, localGateway, subnet)) return false;  // se a configuração falhar, retorna false
-
-  WiFi.begin(ssid.c_str(), pass.c_str());                         // tenta se conectar
-  delay(tempoInicioWiFi);                                         // aguarda o tempo estimado para conexao
-  return WiFi.status() == WL_CONNECTED;                           // retorna o estado da conexao
+  controleWiFi = false;
+  
+  File fileSSID = LittleFS.open(ssidPath, "r");       //
+  File filePass = LittleFS.open(passPath, "r");       //  abre os arquivos
+  File fileIP = LittleFS.open(ipPath, "r");           //  para leitura
+  File fileGateway = LittleFS.open(gatewayPath, "r"); //
+  while(fileSSID.available()) {                       //  enquanto houver redes cadastradas a serem verificadas
+    ssid = fileSSID.readStringUntil('\n');            //  le a linha
+    pass = filePass.readStringUntil('\n');            //  atual
+    ip = fileIP.readStringUntil('\n');                //  de cada arquivo
+    gateway = fileGateway.readStringUntil('\n');      //
+    localIP.fromString(ip.c_str());                   //  define o IP
+    localGateway.fromString(gateway.c_str());         //  define o Gateway
+    if(!WiFi.config(localIP, localGateway, subnet)) continue; //  se falhar na configuracao, pula a parte do loop
+    WiFi.begin(ssid.c_str(), pass.c_str());           //  inicia o WiFi
+    delay(tempoInicioWiFi);                           //  aguarda o tempo estimado
+    if(controleWiFi = (WiFi.status() == WL_CONNECTED)) break; //  se conectar, sai do loop
+  }
+  fileSSID.close();     //
+  filePass.close();     // fecha os arquivos
+  fileIP.close();       //
+  fileGateway.close();  //
+  return controleWiFi;  // retorna o estado da conexao
 }
 
 void setup() {
@@ -74,11 +84,6 @@ void setup() {
   digitalWrite(pinOut, HIGH); // digitais
 
   LittleFS.begin(); // inicia o sistema de arquivos
-
-  ssid = readFile(LittleFS, ssidPath);        // le o arquivo com o nome da rede e salva seu conteudo na variavel
-  pass = readFile(LittleFS, passPath);        // le o arquivo com a senha da rede e salva seu conteudo na variavel
-  ip = readFile(LittleFS, ipPath);            // le o arquivo com o ip e salva seu conteudo na variavel
-  gateway = readFile (LittleFS, gatewayPath); // le o arquivo com o gateway e salva seu conteudo na variavel
 
   ws.onEvent(onWsEvent);  // indica qual função deve ser chamada ao perceber um evento
   server.addHandler(&ws); // indica que o servidor será tratado de acordo com o WebSocket
@@ -124,19 +129,19 @@ void setup() {
       if(p->isPost()) {                                         //  se for post
         if(p->name() == paramInput1) {                          //  se o nome estiver de acordo
           ssid = p->value();                                    //  registra o dado
-          writeFile(LittleFS, ssidPath, ssid.c_str()); }        //  escreve no sistema de arquivos
+          appendFile(LittleFS, ssidPath, ssid.c_str()); }        //  escreve no sistema de arquivos
 
         if(p->name() == paramInput2) {                          //  se o nome estiver de acordo
           pass = p->value();                                    //  registra o dado
-          writeFile(LittleFS, passPath, pass.c_str()); }        //  escreve no sistema de arquivos
+          appendFile(LittleFS, passPath, pass.c_str()); }        //  escreve no sistema de arquivos
 
         if(p->name() == paramInput3) {                          //  se o nome estiver de acordo
           ip = p->value();                                      //  registra o dado
-          writeFile(LittleFS, ipPath, ip.c_str()); }            //  escreve no sistema de arquivos
+          appendFile(LittleFS, ipPath, ip.c_str()); }            //  escreve no sistema de arquivos
 
         if(p->name() == paramInput4) {                          //  se o nome estiver de acordo
           gateway = p->value();                                 //  registra o dado
-          writeFile(LittleFS, gatewayPath, gateway.c_str()); }  //  escreve no sistema de arquivos
+          appendFile(LittleFS, gatewayPath, gateway.c_str()); }  //  escreve no sistema de arquivos
       }
     }
     srvRestart = true;  // registra que o chip deve reiniciar
