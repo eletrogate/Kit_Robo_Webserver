@@ -8,16 +8,19 @@
 #include <LittleFS.h>
 #include "constantes.h"
 
-bool controleAutoRec = false; //
-bool evtConectado = false;    // declara e inicia as variaveis
-bool srvRestart = false;      // de controle
-bool controleWiFi = false;    //
-unsigned tempoDecorrido = 0;  //
+bool controleAutoRec = false;  //
+bool evtConectado = false;     // declara e inicia as variaveis
+bool srvRestart = false;       // de controle
+bool controleWiFi = false;     //
+bool credCadastrada = false;   //
+bool apagarCredencial = false; //
+unsigned tempoDecorrido = 0;   //
 
 String ssid;    //
 String pass;    // declara as variaveis
 String ip;      // de credenciais
 String gateway; //
+String selCred;
 
 AsyncWebServer server(80);  // instancia o servidor e o atribui à porta 80
 AsyncWebSocket ws("/ws");   // instancia o websocket
@@ -25,6 +28,18 @@ AsyncWebSocket ws("/ws");   // instancia o websocket
 IPAddress localIP;                // declara as variaveis
 IPAddress localGateway;           // de conexão
 IPAddress subnet(255, 255, 0, 0); //
+
+String listaRedes(const String& var) {
+  String retorno;
+  File fileSSID = LittleFS.open(ssidPath, "r");
+  if(var == "modelo")
+    while(fileSSID.available()) {
+      String nomeSSID = fileSSID.readStringUntil('\n');
+      retorno += "<option value=" + nomeSSID + ">" + nomeSSID + "</option>";
+    }
+  fileSSID.close();
+  return retorno;
+}
 
 bool caractereValido(char c)  {
   return ((c >= '0' && c <= '9') || c == ' ');  // verifica se o caractere recebido do webserver é um número ou um espaço
@@ -48,6 +63,75 @@ void appendFile(fs::FS &fs, const char * path, const char * message) {
   file.print(message);            // escreve o conteudo no arquivo
   file.print(caractereFinal);     // escreve o caractere finalizador                     
   file.close();                   // fecha o arquivo
+}
+
+void apagaCredencial(fs::FS &fs, const char *credencial) {
+  File fileSSID = LittleFS.open(ssidPath, "r");
+  uint8_t linhaLeitura = 0;
+  uint8_t linhaEscrita = 1;
+  credCadastrada = false;
+  while(fileSSID.available() and !credCadastrada)
+    if(linhaLeitura ++; fileSSID.readStringUntil('\n') == credencial)
+      credCadastrada = true;
+
+  fileSSID.close();
+  if(!credCadastrada) return;
+
+  String novoConteudo = "";
+  char caractereArquivo;
+  fileSSID = LittleFS.open(ssidPath, "r");
+  while(fileSSID.available()) {
+    caractereArquivo = fileSSID.read();
+    if(linhaEscrita != linhaLeitura) novoConteudo += caractereArquivo;
+    if(caractereArquivo == '\n') linhaEscrita ++;
+  }
+  fileSSID.close();
+  fileSSID = LittleFS.open(ssidPath, "w");
+  fileSSID.print(novoConteudo);
+  if(linhaLeitura == linhaEscrita) fileSSID.print('\n');
+  fileSSID.close();
+
+  linhaEscrita = 1;
+  novoConteudo = "";
+  File filePass = LittleFS.open(passPath, "r");
+  while(filePass.available()) {
+    caractereArquivo = filePass.read();
+    if(linhaEscrita != linhaLeitura) novoConteudo += caractereArquivo;
+    if(caractereArquivo == '\n') linhaEscrita ++;
+  }
+  filePass.close();
+  filePass = LittleFS.open(passPath, "w");
+  filePass.print(novoConteudo);
+  if(linhaLeitura == linhaEscrita) filePass.print('\n');
+  filePass.close();
+
+  linhaEscrita = 1;
+  novoConteudo = "";
+  File fileIP = LittleFS.open(ipPath, "r");
+  while(fileIP.available()) {
+    caractereArquivo = fileIP.read();
+    if(linhaEscrita != linhaLeitura) novoConteudo += caractereArquivo;
+    if(caractereArquivo == '\n') linhaEscrita ++;
+  }
+  fileIP.close();
+  fileIP = LittleFS.open(ipPath, "w");
+  fileIP.print(novoConteudo);
+  if(linhaLeitura == linhaEscrita) fileIP.print('\n');
+  fileIP.close();
+
+  linhaEscrita = 1;
+  novoConteudo = "";
+  File fileGateway = LittleFS.open(gatewayPath, "r");
+  while(fileGateway.available()) {
+    caractereArquivo = fileGateway.read();
+    if(linhaEscrita != linhaLeitura) novoConteudo += caractereArquivo;
+    if(caractereArquivo == '\n') linhaEscrita ++;
+  }
+  fileGateway.close();
+  fileGateway = LittleFS.open(gatewayPath, "w");
+  fileGateway.print(novoConteudo);
+  if(linhaLeitura == linhaEscrita) fileGateway.print('\n');
+  fileGateway.close();
 }
 
 bool initWiFi() {
@@ -117,7 +201,7 @@ void setup() {
   //****************************************************************************************
   
   server.on("/WM", HTTP_GET, [](AsyncWebServerRequest *request) {  // quando se conectar à pagina do gerenciador
-    request->send(LittleFS, "/wifimanager.html", "text/html"); }); // envia /wifimanager.html
+    request->send(LittleFS, "/wifimanager.html", "text/html", false, listaRedes); }); // envia /wifimanager.html
   
   server.on("/managerStyle.css", HTTP_GET, [](AsyncWebServerRequest *request) { // indica o arquivo
     request->send(LittleFS, "/managerStyle.css", "text/css"); });               // de elementos estéticos
@@ -142,10 +226,15 @@ void setup() {
         if(p->name() == paramInput4) {                          //  se o nome estiver de acordo
           gateway = p->value();                                 //  registra o dado
           appendFile(LittleFS, gatewayPath, gateway.c_str()); }  //  escreve no sistema de arquivos
+
+        if(p->name() == paramInputCred) {
+          selCred = p->value();
+          apagarCredencial = true;
+        }
       }
     }
-    srvRestart = true;  // registra que o chip deve reiniciar
-    request->send(200, "text/plain", "Credenciais cadastradas!"); // gera uma página avisando que as credenciais foram cadastradas
+    if(!apagarCredencial) srvRestart = true;  // registra que o chip deve reiniciar
+    request->send(200, "text/plain", "Credenciais atualizadas!"); // gera uma página avisando que as credenciais foram atualizadas
   });  
 
   if(!initWiFi()) WiFi.softAP("ROBO_ELETROGATE", NULL); // se não conseguir se conectar a uma rede, inicia a AP
@@ -156,6 +245,23 @@ void setup() {
 
 void loop() {
   if(srvRestart) ESP.restart(); // se for para o sistema reiniciar, reinicia
+
+  if(apagarCredencial) {
+    apagaCredencial(LittleFS, selCred.c_str());
+    apagarCredencial = false;
+  File fileSSID = LittleFS.open(ssidPath, "r");       //
+  File filePass = LittleFS.open(passPath, "r");       //  abre os arquivos
+  File fileIP = LittleFS.open(ipPath, "r");           //  para leitura
+  File fileGateway = LittleFS.open(gatewayPath, "r"); //
+  while(fileSSID.available()) Serial.print((char) fileSSID.read());
+  while(filePass.available()) Serial.print((char) filePass.read());
+  while(fileIP.available()) Serial.print((char) fileIP.read());
+  while(fileGateway.available()) Serial.print((char) fileGateway.read());
+  fileSSID.close();
+  filePass.close();
+  fileIP.close();
+  fileGateway.close();
+  }
 
   if(evtConectado && digitalRead(pinIn)) {  // se houve conexão à página
     digitalWrite(pinOut, HIGH);             // envia um sinal digital de nível alto

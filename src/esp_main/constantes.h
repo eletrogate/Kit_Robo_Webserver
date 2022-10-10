@@ -9,6 +9,7 @@ const char *paramInput1 = "ssid";
 const char *paramInput2 = "pass";
 const char *paramInput3 = "ip";
 const char *paramInput4 = "gateway";
+const char *paramInputCred = "cred";
 const char *ssidPath = "/ssid.txt";
 const char *passPath = "/pass.txt";
 const char *ipPath = "/ip.txt";
