@@ -8,12 +8,12 @@
 #include <LittleFS.h>
 #include "constantes.h"
 
-bool controleAutoRec = false;  //
-bool evtConectado = false;     // declara e inicia as variaveis
-bool srvRestart = false;       // de controle
-bool controleWiFi = false;     //
-bool credCadastrada = false;   //
-bool apagarCredencial = false; //
+bool controleAutoRec;  //
+bool evtConectado;     // declara e inicia as variaveis
+bool srvRestart;       // de controle
+bool controleWiFi;     //
+bool credCadastrada;   //
+bool apagarCredencial; //
 unsigned tempoDecorrido = 0;   //
 
 String ssid;    //
@@ -42,14 +42,14 @@ String listaRedes(const String& var) {
 }
 
 bool caractereValido(char c)  {
-  return ((c >= '0' && c <= '9') || c == ' ');  // verifica se o caractere recebido do webserver é um número ou um espaço
+  return ((c >= '0' and c <= '9') or c == ' ');  // verifica se o caractere recebido do webserver é um número ou um espaço
 }
 
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)  { // definição da tratativa de evento de servidor assíncrono
   if(type == WS_EVT_DATA) {                                                       // se for o recebimento de dados e o Arduino puder receber
     char *data_ = (char*) data;                                                   // registra todos os dados recebidos do servidor
     Serial.write(caractereInicio);                                                // envia o caractere de inicio de transmissao
-    for(uint8_t i = 0; caractereValido(data_[i]) && i < tamanhoMaximoDados; i ++) // enquanto for um caractere valido e o tamanho for inferior ao maximo
+    for(uint8_t i = 0; caractereValido(data_[i]) and i < tamanhoMaximoDados; i ++) // enquanto for um caractere valido e o tamanho for inferior ao maximo
       Serial.write(data_[i]);                                                     // envia este dado na serial
     Serial.write(caractereFinal); }                                               // envia o caractere final para tratamento
   else if(type == WS_EVT_CONNECT) { // se for a conexao à pagina
@@ -137,7 +137,12 @@ void apagaCredencial(fs::FS &fs, const char *credencial) {
 bool initWiFi() {
   WiFi.mode(WIFI_STA); // configura o modo como STA
 
-  controleWiFi = false;
+  controleAutoRec = false; 
+  evtConectado = false;    
+  srvRestart = false;      
+  controleWiFi = false;    
+  credCadastrada = false;  
+  apagarCredencial = false;
   
   File fileSSID = LittleFS.open(ssidPath, "r");       //
   File filePass = LittleFS.open(passPath, "r");       //  abre os arquivos
@@ -233,50 +238,44 @@ void setup() {
         }
       }
     }
-    if(!apagarCredencial) srvRestart = true;  // registra que o chip deve reiniciar
+    srvRestart = true;  // registra que o chip deve reiniciar
     request->send(200, "text/plain", "Credenciais atualizadas!"); // gera uma página avisando que as credenciais foram atualizadas
   });  
 
-  if(!initWiFi()) WiFi.softAP("ROBO_ELETROGATE", NULL); // se não conseguir se conectar a uma rede, inicia a AP
+  if(!initWiFi()) {                       // se não conseguir se conectar a uma rede
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP("ROBO_ELETROGATE", NULL); // inicia a AP
+  }
   
   server.begin();     // inicia o servidor
   Serial.begin(9600); // inicia a serial
 }
 
 void loop() {
-  if(srvRestart) ESP.restart(); // se for para o sistema reiniciar, reinicia
+  if(srvRestart and !apagarCredencial) ESP.restart(); // se for para o sistema reiniciar, reinicia
 
   if(apagarCredencial) {
     apagaCredencial(LittleFS, selCred.c_str());
     apagarCredencial = false;
-  File fileSSID = LittleFS.open(ssidPath, "r");       //
-  File filePass = LittleFS.open(passPath, "r");       //  abre os arquivos
-  File fileIP = LittleFS.open(ipPath, "r");           //  para leitura
-  File fileGateway = LittleFS.open(gatewayPath, "r"); //
-  while(fileSSID.available()) Serial.print((char) fileSSID.read());
-  while(filePass.available()) Serial.print((char) filePass.read());
-  while(fileIP.available()) Serial.print((char) fileIP.read());
-  while(fileGateway.available()) Serial.print((char) fileGateway.read());
-  fileSSID.close();
-  filePass.close();
-  fileIP.close();
-  fileGateway.close();
   }
 
-  if(evtConectado && digitalRead(pinIn)) {  // se houve conexão à página
+  if(evtConectado and digitalRead(pinIn)) { // se houve conexão à página
     digitalWrite(pinOut, HIGH);             // envia um sinal digital de nível alto
-    evtConectado = false; }                 // reseta a variavel de controle
+    evtConectado = false;                   // reseta a variavel de controle
+  }
 
-  if(WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED && controleAutoRec == false)  { // se estiver conectado ao WiFi pela primeira vez neste loop
+  if(WiFi.getMode() == WIFI_STA and WiFi.status() == WL_CONNECTED and controleAutoRec == false)  { // se estiver conectado ao WiFi pela primeira vez neste loop
     WiFi.setAutoReconnect(true);  // ativa a autoreconexão
     WiFi.persistent(true);        // ativa a persistência
-    controleAutoRec = true;   }   // indica que a robustez de WiFi já foi configurada após a reconexão
+    controleAutoRec = true;       // indica que a robustez de WiFi já foi configurada após a reconexão
+  }
 
-  if(controleAutoRec == true && (WiFi.getMode() != WIFI_STA || WiFi.status() != WL_CONNECTED))   // se estiver desconectado ou em modo diferente de STA
+  if(controleAutoRec == true and (WiFi.getMode() != WIFI_STA or WiFi.status() != WL_CONNECTED))   // se estiver desconectado ou em modo diferente de STA
     controleAutoRec = false;      // indica que houve a desconexão
 
   if(millis() - tempoDecorrido >= intervaloWiFi) { // a cada intervaloWiFi ms
     tempoDecorrido = millis(); // atualiza o tempo
-    if(WiFi.status() != WL_CONNECTED && WiFi.getMode() == WIFI_STA) // se estiver desconectado e em modo STA
-      WiFi.reconnect(); } // tenta reconectar
+    if(WiFi.status() != WL_CONNECTED and WiFi.getMode() == WIFI_STA) // se estiver desconectado e em modo STA
+      WiFi.reconnect();   // tenta reconectar
+  }
 }
