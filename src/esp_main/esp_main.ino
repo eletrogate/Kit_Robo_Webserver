@@ -14,13 +14,13 @@ bool srvRestart;       // de controle
 bool controleWiFi;     //
 bool credCadastrada;   //
 bool apagarCredencial; //
-unsigned tempoDecorrido = 0;   //
+unsigned tempoDecorrido = 0;
 
 String ssid;    //
 String pass;    // declara as variaveis
 String ip;      // de credenciais
 String gateway; //
-String selCred;
+String selCred; //
 
 AsyncWebServer server(80);  // instancia o servidor e o atribui à porta 80
 AsyncWebSocket ws("/ws");   // instancia o websocket
@@ -136,13 +136,6 @@ void apagaCredencial(fs::FS &fs, const char *credencial) {
 
 bool initWiFi() {
   WiFi.mode(WIFI_STA); // configura o modo como STA
-
-  controleAutoRec = false; 
-  evtConectado = false;    
-  srvRestart = false;      
-  controleWiFi = false;    
-  credCadastrada = false;  
-  apagarCredencial = false;
   
   File fileSSID = LittleFS.open(ssidPath, "r");       //
   File filePass = LittleFS.open(passPath, "r");       //  abre os arquivos
@@ -171,6 +164,13 @@ void setup() {
   pinMode(pinIn, INPUT);      // inicia a entrada
   pinMode(pinOut, OUTPUT);    // e a saída
   digitalWrite(pinOut, HIGH); // digitais
+
+  controleAutoRec = false; 
+  evtConectado = false;    
+  srvRestart = false;      
+  controleWiFi = false;    
+  credCadastrada = false;  
+  apagarCredencial = false;
 
   LittleFS.begin(); // inicia o sistema de arquivos
 
