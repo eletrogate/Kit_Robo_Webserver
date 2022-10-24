@@ -21,11 +21,11 @@ void setup() {
 }
 
 void loop() {
+
   if(!digitalRead(pinIn)) {           // se detectar nova conexão à página
-    Serial.end();                     // encerra a serial
     digitalWrite(pinOut, LOW);        // avisa que detectou
     delay(100);                       // aguarda 100 milisegundos
-    Serial.begin(9600);               // inicializa a serial
+    while(Serial.read() != -1);       // esvazia o buffer
     digitalWrite(pinOut, HIGH);       // prepara para a proxima conexão
   }
 
