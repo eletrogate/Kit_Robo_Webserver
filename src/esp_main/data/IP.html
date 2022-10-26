@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <title>Robo Eletrogate IP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8"/>
+  <link rel="icon" href="icone.ico">
+  <link rel="stylesheet" type="text/css" href="managerStyle.css">
+</head>
+<body>
+  <div class="topnav">
+    <h1>Robô Eletrogate IP</h1>
+  </div>
+  <div class="content">
+    <div class="card-grid">
+      <div class="card">
+        <form action="/IP" method="POST">
+          <p>
+            <p> O IP de seu robô é: %modeloIP% </p>
+            <p> O gateway ao qual está conectado é: %modeloGateway% </p>
+            <input type ="submit" value ="Desligar AP">
+          </p>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

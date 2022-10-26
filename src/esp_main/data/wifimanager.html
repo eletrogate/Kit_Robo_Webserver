@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <title>Robo Eletrogate</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -21,9 +21,11 @@
             <label for="pass">Senha</label>
             <input type="text" id ="pass" name="pass"><br>
             <label for="ip">IP</label>
-            <input type="text" id ="ip" name="ip"><br>
+            <input type="text" id ="ip" name="ip" placeholder="000.000.0.0"
+              pattern="^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"><br>
             <label for="gateway">Gateway</label>
-            <input type="text" id ="gateway" name="gateway"><br>
+            <input type="text" id ="gateway" name="gateway" placeholder="000.000.0.0"
+              pattern="^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$"><br>
             <input type ="submit" value ="Cadastrar">
           </p>
         </form>

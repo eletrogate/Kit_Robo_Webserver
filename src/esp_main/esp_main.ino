@@ -14,6 +14,8 @@ bool srvRestart;       // de controle
 bool controleWiFi;     //
 bool credCadastrada;   //
 bool apagarCredencial; //
+bool IPouGatewayVazios;
+bool deveIniciarAP;
 unsigned tempoDecorrido = 0;
 
 String ssid;    //
@@ -30,6 +32,18 @@ IPAddress localGateway;           // de conexão
 IPAddress subnet(255, 255, 0, 0); //
 
 String listaRedes(const String& var) {
+  String retorno;
+  File fileSSID = LittleFS.open(ssidPath, "r");
+  if(var == "modelo")
+    while(fileSSID.available()) {
+      String nomeSSID = fileSSID.readStringUntil('\n');
+      retorno += "<option value=" + nomeSSID + ">" + nomeSSID + "</option>";
+    }
+  fileSSID.close();
+  return retorno;
+}
+
+String modeloIPeG(const String& var) {
   String retorno;
   File fileSSID = LittleFS.open(ssidPath, "r");
   if(var == "modelo")
@@ -146,9 +160,15 @@ bool initWiFi() {
     pass = filePass.readStringUntil('\n');            //  atual
     ip = fileIP.readStringUntil('\n');                //  de cada arquivo
     gateway = fileGateway.readStringUntil('\n');      //
-    localIP.fromString(ip.c_str());                   //  define o IP
-    localGateway.fromString(gateway.c_str());         //  define o Gateway
-    if(!WiFi.config(localIP, localGateway, subnet)) continue; //  se falhar na configuracao, pula a parte do loop
+    IPouGatewayVazios = false;
+    if(ip == "" or gateway == "") {
+      Serial.println("ish ficou vazio");
+      IPouGatewayVazios = true;
+    } else {
+      localIP.fromString(ip.c_str());                   //  define o IP
+      localGateway.fromString(gateway.c_str());         //  define o Gateway
+      if(!WiFi.config(localIP, localGateway, subnet)) continue; //  se falhar na configuracao, pula a parte do loop
+    }
     WiFi.begin(ssid.c_str(), pass.c_str());           //  inicia o WiFi
     delay(tempoInicioWiFi);                           //  aguarda o tempo estimado
     if(controleWiFi = (WiFi.status() == WL_CONNECTED)) break; //  se conectar, sai do loop
@@ -157,10 +177,17 @@ bool initWiFi() {
   filePass.close();     // fecha os arquivos
   fileIP.close();       //
   fileGateway.close();  //
+  if(controleWiFi and IPouGatewayVazios) {
+    deveIniciarAP = true;
+    server.on("/IP", HTTP_GET, [](AsyncWebServerRequest *request) {                  // quando alguém se conectar ao servidor do ip
+      request->send(LittleFS, "/IP.html", "text/html", false, modeloIPeGateway);  }); // envia o IP recebido pelo roteador
+  }
   return controleWiFi;  // retorna o estado da conexao
 }
 
 void setup() {
+
+  Serial.begin(9600); // inicia a serial
   pinMode(pinIn, INPUT);      // inicia a entrada
   pinMode(pinOut, OUTPUT);    // e a saída
   digitalWrite(pinOut, HIGH); // digitais
@@ -171,6 +198,7 @@ void setup() {
   controleWiFi = false;    
   credCadastrada = false;  
   apagarCredencial = false;
+  deveIniciarAP = false;
 
   LittleFS.begin(); // inicia o sistema de arquivos
 
@@ -242,13 +270,13 @@ void setup() {
     request->send(200, "text/plain", "Credenciais atualizadas!"); // gera uma página avisando que as credenciais foram atualizadas
   });  
 
-  if(!initWiFi()) {                       // se não conseguir se conectar a uma rede
+  if((!initWiFi()) or deveIniciarAP) {                       // se não conseguir se conectar a uma rede
     WiFi.mode(WIFI_AP);
     WiFi.softAP("ROBO_ELETROGATE", NULL); // inicia a AP
   }
   
   server.begin();     // inicia o servidor
-  Serial.begin(9600); // inicia a serial
+  //Serial.begin(9600); // inicia a serial
 }
 
 void loop() {
