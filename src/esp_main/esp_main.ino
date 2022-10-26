@@ -34,7 +34,7 @@ IPAddress subnet(255, 255, 0, 0); //
 String listaRedes(const String& var) {
   String retorno;
   File fileSSID = LittleFS.open(ssidPath, "r");
-  if(var == "modelo")
+  if(var == "modeloLista")
     while(fileSSID.available()) {
       String nomeSSID = fileSSID.readStringUntil('\n');
       retorno += "<option value=" + nomeSSID + ">" + nomeSSID + "</option>";
@@ -43,16 +43,11 @@ String listaRedes(const String& var) {
   return retorno;
 }
 
-String modeloIPeG(const String& var) {
-  String retorno;
-  File fileSSID = LittleFS.open(ssidPath, "r");
-  if(var == "modelo")
-    while(fileSSID.available()) {
-      String nomeSSID = fileSSID.readStringUntil('\n');
-      retorno += "<option value=" + nomeSSID + ">" + nomeSSID + "</option>";
-    }
-  fileSSID.close();
-  return retorno;
+String modeloIPeGateway(const String& var) {
+  if(var == "modeloIP")
+    return WiFi.localIP().toString();
+  else if(var == "modeloGateway")
+    return WiFi.gatewayIP().toString();
 }
 
 bool caractereValido(char c)  {
@@ -162,7 +157,6 @@ bool initWiFi() {
     gateway = fileGateway.readStringUntil('\n');      //
     IPouGatewayVazios = false;
     if(ip == "" or gateway == "") {
-      Serial.println("ish ficou vazio");
       IPouGatewayVazios = true;
     } else {
       localIP.fromString(ip.c_str());                   //  define o IP
@@ -181,13 +175,14 @@ bool initWiFi() {
     deveIniciarAP = true;
     server.on("/IP", HTTP_GET, [](AsyncWebServerRequest *request) {                  // quando alguém se conectar ao servidor do ip
       request->send(LittleFS, "/IP.html", "text/html", false, modeloIPeGateway);  }); // envia o IP recebido pelo roteador
+    server.on("/IP", HTTP_POST, [](AsyncWebServerRequest *request) {
+      WiFi.mode(WIFI_STA);
+      WiFi.softAPdisconnect(true); });
   }
   return controleWiFi;  // retorna o estado da conexao
 }
 
 void setup() {
-
-  Serial.begin(9600); // inicia a serial
   pinMode(pinIn, INPUT);      // inicia a entrada
   pinMode(pinOut, OUTPUT);    // e a saída
   digitalWrite(pinOut, HIGH); // digitais
@@ -271,12 +266,15 @@ void setup() {
   });  
 
   if((!initWiFi()) or deveIniciarAP) {                       // se não conseguir se conectar a uma rede
-    WiFi.mode(WIFI_AP);
+    if(deveIniciarAP)
+      WiFi.mode(WIFI_AP_STA);
+    else
+      WiFi.mode(WIFI_AP);
     WiFi.softAP("ROBO_ELETROGATE", NULL); // inicia a AP
   }
   
   server.begin();     // inicia o servidor
-  //Serial.begin(9600); // inicia a serial
+  Serial.begin(9600); // inicia a serial
 }
 
 void loop() {
