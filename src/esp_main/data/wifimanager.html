@@ -14,7 +14,7 @@
   <div class="content">
     <div class="card-grid">
       <div class="card">
-        <form action="/WM" method="POST">
+        <form action="/Cadastra" method="POST">
           <p>
             <label for="ssid">SSID</label>
             <input type="text" id ="ssid" name="ssid"><br>
@@ -29,13 +29,14 @@
             <input type ="submit" value ="Cadastrar">
           </p>
         </form>
-        <form action="/WM" method="POST">
+        <form action="/Apaga" method="POST">
           <label for="cred">Credenciais Cadastradas:</label>
           <select name="cred" id="cred">
             %modeloLista%
           </select>
           <input type="submit" value="Apagar">
         </form>
+        %modeloIP%
       </div>
     </div>
   </div>

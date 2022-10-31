@@ -15,7 +15,7 @@ bool controleWiFi;     //
 bool credCadastrada;   //
 bool apagarCredencial; //
 bool IPouGatewayVazios;
-bool deveIniciarAP;
+bool deveIniciarAPSTA;
 unsigned tempoDecorrido = 0;
 
 String ssid;    //
@@ -31,23 +31,28 @@ IPAddress localIP;                // declara as variaveis
 IPAddress localGateway;           // de conexão
 IPAddress subnet(255, 255, 0, 0); //
 
-String listaRedes(const String& var) {
+String modelos(const String& var) {
   String retorno;
-  File fileSSID = LittleFS.open(ssidPath, "r");
-  if(var == "modeloLista")
+  if(var == "modeloLista") {
+    File fileSSID = LittleFS.open(ssidPath, "r");
     while(fileSSID.available()) {
       String nomeSSID = fileSSID.readStringUntil('\n');
       retorno += "<option value=" + nomeSSID + ">" + nomeSSID + "</option>";
     }
-  fileSSID.close();
+    fileSSID.close();
+  } else if(var == "modeloIP") {                                                                                                                             
+    if(WiFi.getMode() == WIFI_AP)
+      retorno = "<p>Robo nao conseguiu se conectar.</p>";
+    else
+      if(WiFi.getMode() == WIFI_AP_STA)
+        retorno = R"====(<form action="/WM" method="POST"><p><p>O IP de seu robô é: )====" +
+                    WiFi.localIP().toString() + R"===(</p><p> O gateway ao qual está conectado é: )===" +
+                      WiFi.gatewayIP().toString() + R"==(</p><input type="submit" value="Desligar AP"></p></form>)==";
+      else
+        retorno = R"====(<p>O IP de seu robô é: )====" + WiFi.localIP().toString() +
+                    R"===(</p><p> O gateway ao qual está conectado é: )===" + WiFi.gatewayIP().toString() + R"==(</p>)==";
+  }
   return retorno;
-}
-
-String modeloIPeGateway(const String& var) {
-  if(var == "modeloIP")
-    return WiFi.localIP().toString();
-  else if(var == "modeloGateway")
-    return WiFi.gatewayIP().toString();
 }
 
 bool caractereValido(char c)  {
@@ -171,14 +176,8 @@ bool initWiFi() {
   filePass.close();     // fecha os arquivos
   fileIP.close();       //
   fileGateway.close();  //
-  if(controleWiFi and IPouGatewayVazios) {
-    deveIniciarAP = true;
-    server.on("/IP", HTTP_GET, [](AsyncWebServerRequest *request) {                  // quando alguém se conectar ao servidor do ip
-      request->send(LittleFS, "/IP.html", "text/html", false, modeloIPeGateway);  }); // envia o IP recebido pelo roteador
-    server.on("/IP", HTTP_POST, [](AsyncWebServerRequest *request) {
-      WiFi.mode(WIFI_STA);
-      WiFi.softAPdisconnect(true); });
-  }
+  if(controleWiFi and IPouGatewayVazios)
+    deveIniciarAPSTA = true;
   return controleWiFi;  // retorna o estado da conexao
 }
 
@@ -193,7 +192,7 @@ void setup() {
   controleWiFi = false;    
   credCadastrada = false;  
   apagarCredencial = false;
-  deveIniciarAP = false;
+  deveIniciarAPSTA = false;
 
   LittleFS.begin(); // inicia o sistema de arquivos
 
@@ -229,16 +228,15 @@ void setup() {
   //****************************************************************************************
   
   server.on("/WM", HTTP_GET, [](AsyncWebServerRequest *request) {  // quando se conectar à pagina do gerenciador
-    request->send(LittleFS, "/wifimanager.html", "text/html", false, listaRedes); }); // envia /wifimanager.html
+    request->send(LittleFS, "/wifimanager.html", "text/html", false, modelos); }); // envia /wifimanager.html
   
   server.on("/managerStyle.css", HTTP_GET, [](AsyncWebServerRequest *request) { // indica o arquivo
     request->send(LittleFS, "/managerStyle.css", "text/css"); });               // de elementos estéticos
   
-  server.on("/WM", HTTP_POST, [](AsyncWebServerRequest *request) {
+  server.on("/Cadastra", HTTP_POST, [](AsyncWebServerRequest *request) {
     uint8_t params = request->params();                         //  registra a quantidade de parametros
     for(uint8_t i = 0; i < params; i ++) {                      //  para cada parametro
       AsyncWebParameter* p = request->getParam(i);              //  registra o parametro
-      if(p->isPost()) {                                         //  se for post
         if(p->name() == paramInput1) {                          //  se o nome estiver de acordo
           ssid = p->value();                                    //  registra o dado
           appendFile(LittleFS, ssidPath, ssid.c_str()); }        //  escreve no sistema de arquivos
@@ -254,22 +252,27 @@ void setup() {
         if(p->name() == paramInput4) {                          //  se o nome estiver de acordo
           gateway = p->value();                                 //  registra o dado
           appendFile(LittleFS, gatewayPath, gateway.c_str()); }  //  escreve no sistema de arquivos
-
-        if(p->name() == paramInputCred) {
-          selCred = p->value();
-          apagarCredencial = true;
-        }
-      }
     }
+    request->send(200, "text/plain", "Credenciais cadastradas!"); // gera uma página avisando que as credenciais foram atualizadas
     srvRestart = true;  // registra que o chip deve reiniciar
-    request->send(200, "text/plain", "Credenciais atualizadas!"); // gera uma página avisando que as credenciais foram atualizadas
-  });  
+  }); 
 
-  if((!initWiFi()) or deveIniciarAP) {                       // se não conseguir se conectar a uma rede
-    if(deveIniciarAP)
-      WiFi.mode(WIFI_AP_STA);
-    else
-      WiFi.mode(WIFI_AP);
+  server.on("/Apaga", HTTP_POST, [](AsyncWebServerRequest *request) {
+    if(AsyncWebParameter* p = request->getParam(0); p->name() == paramInputCred) {
+      selCred = p->value();
+      apagarCredencial = true;
+    }
+    request->send(200, "text/plain", "Credenciais apagadas!"); // gera uma página avisando que as credenciais foram atualizadas
+    srvRestart = true;  // registra que o chip deve reiniciar
+  });
+
+  server.on("/WM", HTTP_POST, [](AsyncWebServerRequest *request) {
+    WiFi.mode(WIFI_STA);
+    WiFi.softAPdisconnect(true);
+  });
+
+  if((!initWiFi()) or deveIniciarAPSTA) {                       // se não conseguir se conectar a uma rede
+    WiFi.mode(deveIniciarAPSTA ? WIFI_AP_STA : WIFI_AP);
     WiFi.softAP("ROBO_ELETROGATE", NULL); // inicia a AP
   }
   
