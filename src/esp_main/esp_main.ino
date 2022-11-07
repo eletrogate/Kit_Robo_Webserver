@@ -44,13 +44,8 @@ String modelos(const String& var) {
     if(WiFi.getMode() == WIFI_AP)
       retorno = "<p>Robo nao conseguiu se conectar.</p>";
     else
-      if(WiFi.getMode() == WIFI_AP_STA)
-        retorno = R"====(<form action="/WM" method="POST"><p><p>O IP de seu robô é: )====" +
-                    WiFi.localIP().toString() + R"===(</p><p> O gateway ao qual está conectado é: )===" +
-                      WiFi.gatewayIP().toString() + R"==(</p><input type="submit" value="Desligar AP"></p></form>)==";
-      else
-        retorno = R"====(<p>O IP de seu robô é: )====" + WiFi.localIP().toString() +
-                    R"===(</p><p> O gateway ao qual está conectado é: )===" + WiFi.gatewayIP().toString() + R"==(</p>)==";
+      retorno = "<p>IP: " + WiFi.localIP().toString() + "</p><p>Gateway: " + WiFi.gatewayIP().toString() + "</p>"
+                  + (WiFi.getMode() == WIFI_AP_STA ? R"==(<button class="button" id="dAP" onclick="desligaAP()">Desligar AP</button>)==" : "");
   }
   return retorno;
 }
@@ -266,9 +261,10 @@ void setup() {
     srvRestart = true;  // registra que o chip deve reiniciar
   });
 
-  server.on("/WM", HTTP_POST, [](AsyncWebServerRequest *request) {
+  server.on("/dAP", HTTP_GET, [](AsyncWebServerRequest *request) {
     WiFi.mode(WIFI_STA);
     WiFi.softAPdisconnect(true);
+    request->send(200, "text/plane", "AP desligada");
   });
 
   if((!initWiFi()) or deveIniciarAPSTA) {                       // se não conseguir se conectar a uma rede

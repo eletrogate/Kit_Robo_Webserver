@@ -40,5 +40,16 @@
       </div>
     </div>
   </div>
+  <script>
+    function desligaAP() {
+      var xhttp = new XMLHttpRequest();
+      xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200)
+          document.getElementById("dAP").style.display = "none";
+      };
+      xhttp.open("GET", "dAP", true);
+      xhttp.send();
+    }
+  </script>
 </body>
 </html>
