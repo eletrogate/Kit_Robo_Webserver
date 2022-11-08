@@ -8,39 +8,46 @@
 #include <LittleFS.h>
 #include "constantes.h"
 
-bool controleAutoRec;  //
-bool evtConectado;     // declara e inicia as variaveis
-bool srvRestart;       // de controle
-bool controleWiFi;     //
-bool credCadastrada;   //
-bool apagarCredencial; //
-bool IPouGatewayVazios;
-bool deveIniciarAPSTA;
+#define DEBUG
+
+bool controleAutoRec, evtConectado, srvRestart, controleWiFi, credCadastrada, apagarCredencial, IPouGatewayVazios, deveIniciarAPSTA;
 unsigned tempoDecorrido = 0;
 
-String ssid;    //
-String pass;    // declara as variaveis
-String ip;      // de credenciais
-String gateway; //
-String selCred; //
+String parametrosVariaveis[qtdArquivos];
+String selCred;
 
 AsyncWebServer server(80);  // instancia o servidor e o atribui à porta 80
 AsyncWebSocket ws("/ws");   // instancia o websocket
 
-IPAddress localIP;                // declara as variaveis
-IPAddress localGateway;           // de conexão
-IPAddress subnet(255, 255, 0, 0); //
+IPAddress localIP, localGateway, subnet(255, 255, 0, 0);
+
+#ifdef DEBUG
+void imprimeTodosArquivos(const char * msg) {
+  Serial.print("Inicia imprime todos os arquivos em: "); Serial.println(msg);
+  File file[qtdArquivos];
+  for(size_t i = 0; i < qtdArquivos; i ++) {
+    Serial.print(paramVec[i]);
+    file[i] = LittleFS.open(paths[i], "r");
+    Serial.print(": "); Serial.println(file[i].size());
+    while(file[i].available())
+      Serial.print((char) file[i].read());
+    Serial.println("-----");
+    file[i].close();
+  }
+  Serial.print("Encerra imprime todos os arquivos em: "); Serial.println(msg);
+}
+#endif
 
 String modelos(const String& var) {
   String retorno;
   if(var == "modeloLista") {
-    File fileSSID = LittleFS.open(ssidPath, "r");
+    File fileSSID = LittleFS.open(paths[iSSID], "r");
     while(fileSSID.available()) {
       String nomeSSID = fileSSID.readStringUntil('\n');
       retorno += "<option value=" + nomeSSID + ">" + nomeSSID + "</option>";
     }
     fileSSID.close();
-  } else if(var == "modeloIP") {                                                                                                                             
+  } else if(var == "modeloIP") {
     if(WiFi.getMode() == WIFI_AP)
       retorno = "<p>Robo nao conseguiu se conectar.</p>";
     else
@@ -70,15 +77,18 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 void appendFile(fs::FS &fs, const char * path, const char * message) {
   File file = fs.open(path, "a"); // abre o arquivo para escrita
   file.print(message);            // escreve o conteudo no arquivo
-  file.print(caractereFinal);     // escreve o caractere finalizador                     
+  file.print(caractereFinal);     // escreve o caractere finalizador
   file.close();                   // fecha o arquivo
+  #ifdef DEBUG
+    imprimeTodosArquivos("appendFile");
+  #endif
 }
 
 void apagaCredencial(fs::FS &fs, const char *credencial) {
-  File fileSSID = LittleFS.open(ssidPath, "r");
+  File fileSSID = LittleFS.open(paths[iSSID], "r");
   uint8_t linhaLeitura = 0;
-  uint8_t linhaEscrita = 1;
   credCadastrada = false;
+
   while(fileSSID.available() and !credCadastrada)
     if(linhaLeitura ++; fileSSID.readStringUntil('\n') == credencial)
       credCadastrada = true;
@@ -86,104 +96,97 @@ void apagaCredencial(fs::FS &fs, const char *credencial) {
   fileSSID.close();
   if(!credCadastrada) return;
 
-  String novoConteudo = "";
-  char caractereArquivo;
-  fileSSID = LittleFS.open(ssidPath, "r");
-  while(fileSSID.available()) {
-    caractereArquivo = fileSSID.read();
-    if(linhaEscrita != linhaLeitura) novoConteudo += caractereArquivo;
-    if(caractereArquivo == '\n') linhaEscrita ++;
+  for(size_t i = 0; i < qtdArquivos; i ++) {
+    #ifdef DEBUG
+      imprimeTodosArquivos("apagaCredencial1");
+    #endif
+    uint8_t linhaEscrita = 1;
+    String novoConteudo = "";
+    char caractereArquivo;
+    File file = LittleFS.open(paths[i], "r");
+    while(file.available()) {
+      caractereArquivo = file.read();
+      if(linhaEscrita != linhaLeitura) novoConteudo += caractereArquivo;
+      if(caractereArquivo == '\n') linhaEscrita ++;
+    }
+    file.close();
+    file = LittleFS.open(paths[i], "w");
+    file.print(novoConteudo);
+    if(linhaLeitura == linhaEscrita) file.print('\n');
+    file.close();    
   }
-  fileSSID.close();
-  fileSSID = LittleFS.open(ssidPath, "w");
-  fileSSID.print(novoConteudo);
-  if(linhaLeitura == linhaEscrita) fileSSID.print('\n');
-  fileSSID.close();
-
-  linhaEscrita = 1;
-  novoConteudo = "";
-  File filePass = LittleFS.open(passPath, "r");
-  while(filePass.available()) {
-    caractereArquivo = filePass.read();
-    if(linhaEscrita != linhaLeitura) novoConteudo += caractereArquivo;
-    if(caractereArquivo == '\n') linhaEscrita ++;
-  }
-  filePass.close();
-  filePass = LittleFS.open(passPath, "w");
-  filePass.print(novoConteudo);
-  if(linhaLeitura == linhaEscrita) filePass.print('\n');
-  filePass.close();
-
-  linhaEscrita = 1;
-  novoConteudo = "";
-  File fileIP = LittleFS.open(ipPath, "r");
-  while(fileIP.available()) {
-    caractereArquivo = fileIP.read();
-    if(linhaEscrita != linhaLeitura) novoConteudo += caractereArquivo;
-    if(caractereArquivo == '\n') linhaEscrita ++;
-  }
-  fileIP.close();
-  fileIP = LittleFS.open(ipPath, "w");
-  fileIP.print(novoConteudo);
-  if(linhaLeitura == linhaEscrita) fileIP.print('\n');
-  fileIP.close();
-
-  linhaEscrita = 1;
-  novoConteudo = "";
-  File fileGateway = LittleFS.open(gatewayPath, "r");
-  while(fileGateway.available()) {
-    caractereArquivo = fileGateway.read();
-    if(linhaEscrita != linhaLeitura) novoConteudo += caractereArquivo;
-    if(caractereArquivo == '\n') linhaEscrita ++;
-  }
-  fileGateway.close();
-  fileGateway = LittleFS.open(gatewayPath, "w");
-  fileGateway.print(novoConteudo);
-  if(linhaLeitura == linhaEscrita) fileGateway.print('\n');
-  fileGateway.close();
+  #ifdef DEBUG
+    imprimeTodosArquivos("apagaCredencial2");
+  #endif
 }
 
 bool initWiFi() {
+  #ifdef DEBUG
+    imprimeTodosArquivos("initWifi");
+  #endif
   WiFi.mode(WIFI_STA); // configura o modo como STA
+
+  File file[qtdArquivos];
+  for(size_t i = 0; i < qtdArquivos; i ++)
+    file[i] = LittleFS.open(paths[i], "r");
   
-  File fileSSID = LittleFS.open(ssidPath, "r");       //
-  File filePass = LittleFS.open(passPath, "r");       //  abre os arquivos
-  File fileIP = LittleFS.open(ipPath, "r");           //  para leitura
-  File fileGateway = LittleFS.open(gatewayPath, "r"); //
-  while(fileSSID.available()) {                       //  enquanto houver redes cadastradas a serem verificadas
-    ssid = fileSSID.readStringUntil('\n');            //  le a linha
-    pass = filePass.readStringUntil('\n');            //  atual
-    ip = fileIP.readStringUntil('\n');                //  de cada arquivo
-    gateway = fileGateway.readStringUntil('\n');      //
+  while(file[0].available()) {                       //  enquanto houver redes cadastradas a serem verificadas
+    for(size_t i = 0; i < qtdArquivos; i ++)
+      parametrosVariaveis[i] = file[i].readStringUntil('\n');
+
     IPouGatewayVazios = false;
-    if(ip == "" or gateway == "") {
+    if(parametrosVariaveis[iIP] == "" or parametrosVariaveis[iGateway] == "") {
+      #ifdef DEBUG
+        Serial.println("IP e Gateway vazios");
+      #endif
       IPouGatewayVazios = true;
     } else {
-      localIP.fromString(ip.c_str());                   //  define o IP
-      localGateway.fromString(gateway.c_str());         //  define o Gateway
+      localIP.fromString(parametrosVariaveis[iIP].c_str());                   //  define o IP
+      localGateway.fromString(parametrosVariaveis[iGateway].c_str());         //  define o Gateway
       if(!WiFi.config(localIP, localGateway, subnet)) continue; //  se falhar na configuracao, pula a parte do loop
     }
-    WiFi.begin(ssid.c_str(), pass.c_str());           //  inicia o WiFi
+    #ifdef DEBUG
+    Serial.print("rede testada por initWiFi:");
+    for(size_t i = 0; i < qtdArquivos; i ++) {
+      Serial.print(' '); Serial.print(parametrosVariaveis[i]);
+    } 
+    Serial.println(" encerra detalhes da rede testada por initWiFi:");
+    #endif
+    WiFi.begin(parametrosVariaveis[iSSID].c_str(), parametrosVariaveis[iPass].c_str());           //  inicia o WiFi
     delay(tempoInicioWiFi);                           //  aguarda o tempo estimado
     if(controleWiFi = (WiFi.status() == WL_CONNECTED)) break; //  se conectar, sai do loop
   }
-  fileSSID.close();     //
-  filePass.close();     // fecha os arquivos
-  fileIP.close();       //
-  fileGateway.close();  //
+
+  for(size_t i = 0; i < qtdArquivos; i ++)
+    file[i].close();
+  #ifdef DEBUG
+  if(controleWiFi) {
+    Serial.print("rede conectada por initWiFi:");
+    for(size_t i = 0; i < qtdArquivos; i ++) {
+      Serial.print(' '); Serial.print(parametrosVariaveis[i]);
+    }
+    Serial.print(" IP real: "); Serial.print(WiFi.localIP()); Serial.print(" Gateway real: "); Serial.print(WiFi.gatewayIP());
+    Serial.println(" encerra detalhes da rede conectada por initWiFi:");
+  } else
+    Serial.println("Nao conectou :(");
+  #endif
   if(controleWiFi and IPouGatewayVazios)
     deveIniciarAPSTA = true;
   return controleWiFi;  // retorna o estado da conexao
 }
 
 void setup() {
+  #ifdef DEBUG
+  Serial.begin(9600);
+  #endif
+
   pinMode(pinIn, INPUT);      // inicia a entrada
   pinMode(pinOut, OUTPUT);    // e a saída
   digitalWrite(pinOut, HIGH); // digitais
 
   controleAutoRec = false; 
   evtConectado = false;    
-  srvRestart = false;      
+  srvRestart = false;
   controleWiFi = false;    
   credCadastrada = false;  
   apagarCredencial = false;
@@ -230,27 +233,31 @@ void setup() {
   
   server.on("/Cadastra", HTTP_POST, [](AsyncWebServerRequest *request) {
     uint8_t params = request->params();                         //  registra a quantidade de parametros
+    #ifdef DEBUG
+      Serial.print("qtd de parametros: "); Serial.println(params);
+    #endif
     for(uint8_t i = 0; i < params; i ++) {                      //  para cada parametro
       AsyncWebParameter* p = request->getParam(i);              //  registra o parametro
-        if(p->name() == paramInput1) {                          //  se o nome estiver de acordo
-          ssid = p->value();                                    //  registra o dado
-          appendFile(LittleFS, ssidPath, ssid.c_str()); }        //  escreve no sistema de arquivos
-
-        if(p->name() == paramInput2) {                          //  se o nome estiver de acordo
-          pass = p->value();                                    //  registra o dado
-          appendFile(LittleFS, passPath, pass.c_str()); }        //  escreve no sistema de arquivos
-
-        if(p->name() == paramInput3) {                          //  se o nome estiver de acordo
-          ip = p->value();                                      //  registra o dado
-          appendFile(LittleFS, ipPath, ip.c_str()); }            //  escreve no sistema de arquivos
-
-        if(p->name() == paramInput4) {                          //  se o nome estiver de acordo
-          gateway = p->value();                                 //  registra o dado
-          appendFile(LittleFS, gatewayPath, gateway.c_str()); }  //  escreve no sistema de arquivos
+      #ifdef DEBUG
+        Serial.print("parametro cadastrado: ");
+        Serial.print(p->name()); Serial.print(' ');
+      #endif
+        for(size_t j = 0; j < qtdArquivos; j ++) {
+          if(p->name() == paramVec[j]) {
+            #ifdef DEBUG
+              Serial.println(p->value()); 
+            #endif
+            parametrosVariaveis[j] = p->value();
+            appendFile(LittleFS, paths[j], parametrosVariaveis[j].c_str());
+          }
+        }
     }
+    #ifdef DEBUG
+      Serial.println("/-----/");
+    #endif
     request->send(200, "text/plain", "Credenciais cadastradas!"); // gera uma página avisando que as credenciais foram atualizadas
     srvRestart = true;  // registra que o chip deve reiniciar
-  }); 
+  });
 
   server.on("/Apaga", HTTP_POST, [](AsyncWebServerRequest *request) {
     if(AsyncWebParameter* p = request->getParam(0); p->name() == paramInputCred) {
@@ -264,7 +271,7 @@ void setup() {
   server.on("/dAP", HTTP_GET, [](AsyncWebServerRequest *request) {
     WiFi.mode(WIFI_STA);
     WiFi.softAPdisconnect(true);
-    request->send(200, "text/plane", "AP desligada");
+    request->send(200, "text/plain", "AP desligada");
   });
 
   if((!initWiFi()) or deveIniciarAPSTA) {                       // se não conseguir se conectar a uma rede
@@ -273,7 +280,10 @@ void setup() {
   }
   
   server.begin();     // inicia o servidor
+
+  #ifndef DEBUG
   Serial.begin(9600); // inicia a serial
+  #endif
 }
 
 void loop() {
