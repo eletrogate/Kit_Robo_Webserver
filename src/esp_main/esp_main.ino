@@ -8,18 +8,16 @@
 #include <LittleFS.h>
 #include "constantes.h"
 
-#define DEBUG
+//#define DEBUG
 
-bool controleAutoRec, evtConectado, srvRestart, controleWiFi, credCadastrada, apagarCredencial, IPouGatewayVazios, deveIniciarAPSTA;
-unsigned tempoDecorrido = 0;
+bool evtConectado, srvRestart,
+      apagarCredencial, deveIniciarAPSTA;
 
 String parametrosVariaveis[qtdArquivos];
 String selCred;
 
 AsyncWebServer server(80);  // instancia o servidor e o atribui à porta 80
 AsyncWebSocket ws("/ws");   // instancia o websocket
-
-IPAddress localIP, localGateway, subnet(255, 255, 0, 0);
 
 #ifdef DEBUG
 void imprimeTodosArquivos(const char * msg) {
@@ -43,7 +41,7 @@ String modelos(const String& var) {
   if(var == "modeloLista") {
     File fileSSID = LittleFS.open(paths[iSSID], "r");
     while(fileSSID.available()) {
-      String nomeSSID = fileSSID.readStringUntil('\n');
+      String nomeSSID = fileSSID.readStringUntil(caractereFinal);
       retorno += "<option value=" + nomeSSID + ">" + nomeSSID + "</option>";
     }
     fileSSID.close();
@@ -57,7 +55,8 @@ String modelos(const String& var) {
   return retorno;
 }
 
-bool caractereValido(char c)  {
+inline bool caractereValido(char c) __attribute__((always_inline));
+bool caractereValido(char c) {
   return ((c >= '0' and c <= '9') or c == ' ');  // verifica se o caractere recebido do webserver é um número ou um espaço
 }
 
@@ -87,10 +86,10 @@ void appendFile(fs::FS &fs, const char * path, const char * message) {
 void apagaCredencial(fs::FS &fs, const char *credencial) {
   File fileSSID = LittleFS.open(paths[iSSID], "r");
   uint8_t linhaLeitura = 0;
-  credCadastrada = false;
+  bool credCadastrada = false;
 
   while(fileSSID.available() and !credCadastrada)
-    if(linhaLeitura ++; fileSSID.readStringUntil('\n') == credencial)
+    if(linhaLeitura ++; fileSSID.readStringUntil(caractereFinal) == credencial)
       credCadastrada = true;
 
   fileSSID.close();
@@ -107,12 +106,12 @@ void apagaCredencial(fs::FS &fs, const char *credencial) {
     while(file.available()) {
       caractereArquivo = file.read();
       if(linhaEscrita != linhaLeitura) novoConteudo += caractereArquivo;
-      if(caractereArquivo == '\n') linhaEscrita ++;
+      if(caractereArquivo == caractereFinal) linhaEscrita ++;
     }
     file.close();
     file = LittleFS.open(paths[i], "w");
     file.print(novoConteudo);
-    if(linhaLeitura == linhaEscrita) file.print('\n');
+    if(linhaLeitura == linhaEscrita) file.print(caractereFinal);
     file.close();    
   }
   #ifdef DEBUG
@@ -125,6 +124,7 @@ bool initWiFi() {
     imprimeTodosArquivos("initWifi");
   #endif
   WiFi.mode(WIFI_STA); // configura o modo como STA
+  bool controleWiFi = false, IPouGatewayVazios = false;
 
   File file[qtdArquivos];
   for(size_t i = 0; i < qtdArquivos; i ++)
@@ -132,7 +132,7 @@ bool initWiFi() {
   
   while(file[0].available()) {                       //  enquanto houver redes cadastradas a serem verificadas
     for(size_t i = 0; i < qtdArquivos; i ++)
-      parametrosVariaveis[i] = file[i].readStringUntil('\n');
+      parametrosVariaveis[i] = file[i].readStringUntil(caractereFinal);
 
     IPouGatewayVazios = false;
     if(parametrosVariaveis[iIP] == "" or parametrosVariaveis[iGateway] == "") {
@@ -140,10 +140,9 @@ bool initWiFi() {
         Serial.println("IP e Gateway vazios");
       #endif
       IPouGatewayVazios = true;
-    } else {
-      localIP.fromString(parametrosVariaveis[iIP].c_str());                   //  define o IP
-      localGateway.fromString(parametrosVariaveis[iGateway].c_str());         //  define o Gateway
-      if(!WiFi.config(localIP, localGateway, subnet)) continue; //  se falhar na configuracao, pula a parte do loop
+    } else {         //  define o Gateway
+      if(!WiFi.config(IPAddress().fromString(parametrosVariaveis[iIP].c_str()),
+                        IPAddress().fromString(parametrosVariaveis[iGateway].c_str()), IPAddress(255, 255, 0, 0))) continue; //  se falhar na configuracao, pula a parte do loop
     }
     #ifdef DEBUG
     Serial.print("rede testada por initWiFi:");
@@ -165,7 +164,8 @@ bool initWiFi() {
     for(size_t i = 0; i < qtdArquivos; i ++) {
       Serial.print(' '); Serial.print(parametrosVariaveis[i]);
     }
-    Serial.print(" IP real: "); Serial.print(WiFi.localIP()); Serial.print(" Gateway real: "); Serial.print(WiFi.gatewayIP());
+    Serial.print(" IP real: "); Serial.print(WiFi.localIP());
+    Serial.print(" Gateway real: "); Serial.print(WiFi.gatewayIP());
     Serial.println(" encerra detalhes da rede conectada por initWiFi:");
   } else
     Serial.println("Nao conectou :(");
@@ -184,13 +184,7 @@ void setup() {
   pinMode(pinOut, OUTPUT);    // e a saída
   digitalWrite(pinOut, HIGH); // digitais
 
-  controleAutoRec = false; 
-  evtConectado = false;    
-  srvRestart = false;
-  controleWiFi = false;    
-  credCadastrada = false;  
-  apagarCredencial = false;
-  deveIniciarAPSTA = false;
+  evtConectado = srvRestart = apagarCredencial = deveIniciarAPSTA = false;
 
   LittleFS.begin(); // inicia o sistema de arquivos
 
@@ -199,8 +193,6 @@ void setup() {
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ // quando alguém se conectar ao servidor do joystick
       request->send(LittleFS, "/index.html");  });             // envia o script salvo em /index.html
-
-  //************** as chamadas do método a seguir constroem a pagina do joystick ******************//
 
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(LittleFS, "/style.css", "text/css"); });
@@ -222,8 +214,6 @@ void setup() {
 
   server.on("/blog.png", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(LittleFS, "/blog.png", "image/png"); });
-    
-  //****************************************************************************************
   
   server.on("/WM", HTTP_GET, [](AsyncWebServerRequest *request) {  // quando se conectar à pagina do gerenciador
     request->send(LittleFS, "/wifimanager.html", "text/html", false, modelos); }); // envia /wifimanager.html
@@ -262,6 +252,9 @@ void setup() {
   server.on("/Apaga", HTTP_POST, [](AsyncWebServerRequest *request) {
     if(AsyncWebParameter* p = request->getParam(0); p->name() == paramInputCred) {
       selCred = p->value();
+      #ifdef DEBUG
+        Serial.print("Rede deletada: "); Serial.println(selCred);
+      #endif
       apagarCredencial = true;
     }
     request->send(200, "text/plain", "Credenciais apagadas!"); // gera uma página avisando que as credenciais foram atualizadas
@@ -271,7 +264,10 @@ void setup() {
   server.on("/dAP", HTTP_GET, [](AsyncWebServerRequest *request) {
     WiFi.mode(WIFI_STA);
     WiFi.softAPdisconnect(true);
-    request->send(200, "text/plain", "AP desligada");
+    #ifdef DEBUG
+      Serial.print("AP desligada");
+    #endif
+    request->send(200);
   });
 
   if((!initWiFi()) or deveIniciarAPSTA) {                       // se não conseguir se conectar a uma rede
@@ -287,6 +283,10 @@ void setup() {
 }
 
 void loop() {
+
+  static bool controleAutoRec = false;
+  static unsigned tempoDecorrido = 0;
+
   if(srvRestart and !apagarCredencial) ESP.restart(); // se for para o sistema reiniciar, reinicia
 
   if(apagarCredencial) {
@@ -314,3 +314,26 @@ void loop() {
       WiFi.reconnect();   // tenta reconectar
   }
 }
+//           onde eh usada (pra tentar reduzir globais | x -> eh global | v -> virou local| i -> inicializa mas n usa)
+// variavel              setup loop onWsEvent apagaCredencial initWifi
+// controleAutoRec       		   v	     		
+// evtConectado          	i	   x	     x		
+// srvRestart            	x	   x	                  		
+// controleWiFi          		   		                  	          v
+// credCadastrada        		   		                  v	          
+// apagarCredencial      	x	   x	                  	          	
+// IPouGatewayVazios     		   		                  	          v
+// deveIniciarAPSTA      	x	   		                  	          x
+// tempoDecorrido        		   v	                  	          	
+// parametrosVariaveis[] 	x	   		                  	          x
+// selCred               	x	   x	                  	          	
+// server                	x	   		                  	          
+// ws                    	x	   		                  	          
+// localIP               		   		                  	          v
+// localGateway          		   		                  	          v
+// subnet                		   		                  	          v
+// AVALIAR A POSSIBILIDADE DE USAR AS QUE ESTAO PRESENTES EM MAIS DE UMA POR PASSAGEM NA CHAMADA
+
+// se desconectar, reconectar e não tiver escolhido o IP manualmente, abrir a AP pra ver o IP
+// adicionar uma forma de resetar as credenciais pelo hardware (provavelmente enviar alguma coisa pela uno para o rx do esp)
+// colocar debug nas estruturas referentes à robustes do wifi, mesmo que estejam funcionando legal
