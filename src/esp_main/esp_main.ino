@@ -8,10 +8,9 @@
 #include <LittleFS.h>
 #include "constantes.h"
 
-//#define DEBUG
+#define DEBUG
 
-bool evtConectado, srvRestart,
-      apagarCredencial, deveIniciarAPSTA;
+bool evtConectado, srvRestart, apagarCredencial;
 
 String parametrosVariaveis[qtdArquivos];
 String selCred;
@@ -119,7 +118,7 @@ void apagaCredencial(fs::FS &fs, const char *credencial) {
   #endif
 }
 
-bool initWiFi() {
+bool initWiFi(bool &deveIniciarAPSTA) {
   #ifdef DEBUG
     imprimeTodosArquivos("initWifi");
   #endif
@@ -141,8 +140,10 @@ bool initWiFi() {
       #endif
       IPouGatewayVazios = true;
     } else {         //  define o Gateway
-      if(!WiFi.config(IPAddress().fromString(parametrosVariaveis[iIP].c_str()),
-                        IPAddress().fromString(parametrosVariaveis[iGateway].c_str()), IPAddress(255, 255, 0, 0))) continue; //  se falhar na configuracao, pula a parte do loop
+      IPAddress IPLocal, gatewayLocal;
+      IPLocal.fromString(parametrosVariaveis[iIP].c_str());
+      gatewayLocal.fromString(parametrosVariaveis[iGateway].c_str());
+      if(!WiFi.config(IPLocal, gatewayLocal, IPAddress(255, 255, 0, 0))) continue; //  se falhar na configuracao, pula a parte do loop
     }
     #ifdef DEBUG
     Serial.print("rede testada por initWiFi:");
@@ -184,7 +185,8 @@ void setup() {
   pinMode(pinOut, OUTPUT);    // e a saída
   digitalWrite(pinOut, HIGH); // digitais
 
-  evtConectado = srvRestart = apagarCredencial = deveIniciarAPSTA = false;
+  bool deveIniciarAPSTA = false;
+  evtConectado = srvRestart = apagarCredencial = false;
 
   LittleFS.begin(); // inicia o sistema de arquivos
 
@@ -270,9 +272,12 @@ void setup() {
     request->send(200);
   });
 
-  if((!initWiFi()) or deveIniciarAPSTA) {                       // se não conseguir se conectar a uma rede
+  if((!initWiFi(deveIniciarAPSTA)) or deveIniciarAPSTA) {                       // se não conseguir se conectar a uma rede
     WiFi.mode(deveIniciarAPSTA ? WIFI_AP_STA : WIFI_AP);
     WiFi.softAP("ROBO_ELETROGATE", NULL); // inicia a AP
+    #ifdef DEBUG
+      Serial.print("modo: "); Serial.println(WiFi.getMode());
+    #endif
   }
   
   server.begin();     // inicia o servidor
@@ -312,28 +317,31 @@ void loop() {
     tempoDecorrido = millis(); // atualiza o tempo
     if(WiFi.status() != WL_CONNECTED and WiFi.getMode() == WIFI_STA) // se estiver desconectado e em modo STA
       WiFi.reconnect();   // tenta reconectar
+    
   }
 }
 //           onde eh usada (pra tentar reduzir globais | x -> eh global | v -> virou local| i -> inicializa mas n usa)
 // variavel              setup loop onWsEvent apagaCredencial initWifi
 // controleAutoRec       		   v	     		
-// evtConectado          	i	   x	     x		
-// srvRestart            	x	   x	                  		
+// evtConectado          	i	   x	     x                           -> usa em callback
+// srvRestart            	x	   x	                  		           -> usa em callback
 // controleWiFi          		   		                  	          v
 // credCadastrada        		   		                  v	          
 // apagarCredencial      	x	   x	                  	          	
 // IPouGatewayVazios     		   		                  	          v
-// deveIniciarAPSTA      	x	   		                  	          x
+// deveIniciarAPSTA      	v	   		                  	          
 // tempoDecorrido        		   v	                  	          	
-// parametrosVariaveis[] 	x	   		                  	          x
-// selCred               	x	   x	                  	          	
-// server                	x	   		                  	          
-// ws                    	x	   		                  	          
+// parametrosVariaveis[] 	x	   		                  	          x  -> usa em callback
+// selCred               	x	   x	                  	          	 -> pra compartilhar precisaria de funcao global
+// server                	x	   		                  	             -> precisa ser global
+// ws                    	x	   		                  	             -> precisa ser global
 // localIP               		   		                  	          v
 // localGateway          		   		                  	          v
 // subnet                		   		                  	          v
-// AVALIAR A POSSIBILIDADE DE USAR AS QUE ESTAO PRESENTES EM MAIS DE UMA POR PASSAGEM NA CHAMADA
+
+// testar agora: se joystick continua funcionando e se a seleção entre sta, ap_sta e ap está funcionando de acordo com o que ocorre na conexao
 
 // se desconectar, reconectar e não tiver escolhido o IP manualmente, abrir a AP pra ver o IP
 // adicionar uma forma de resetar as credenciais pelo hardware (provavelmente enviar alguma coisa pela uno para o rx do esp)
 // colocar debug nas estruturas referentes à robustes do wifi, mesmo que estejam funcionando legal
+// convem passar littleFs como argumento? Permite usar SPIFFS, né. 

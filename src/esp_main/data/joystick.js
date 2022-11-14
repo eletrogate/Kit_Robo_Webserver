@@ -104,7 +104,6 @@ function stopDrawing() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     background();
     joystick(width / 2, height / 2);
-
 }
 
 function Draw(t) {
