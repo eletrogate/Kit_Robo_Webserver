@@ -8,9 +8,9 @@
 #include <LittleFS.h>
 #include "constantes.h"
 
-#define DEBUG
+//#define DEBUG
 
-bool evtConectado, srvRestart, apagarCredencial;
+bool evtConectado, srvRestart, apagarCredencial, deveIniciarAPSTA;
 
 String parametrosVariaveis[qtdArquivos];
 String selCred;
@@ -77,13 +77,10 @@ void appendFile(fs::FS &fs, const char * path, const char * message) {
   file.print(message);            // escreve o conteudo no arquivo
   file.print(caractereFinal);     // escreve o caractere finalizador
   file.close();                   // fecha o arquivo
-  #ifdef DEBUG
-    imprimeTodosArquivos("appendFile");
-  #endif
 }
 
 void apagaCredencial(fs::FS &fs, const char *credencial) {
-  File fileSSID = LittleFS.open(paths[iSSID], "r");
+  File fileSSID = fs.open(paths[iSSID], "r");
   uint8_t linhaLeitura = 0;
   bool credCadastrada = false;
 
@@ -94,10 +91,10 @@ void apagaCredencial(fs::FS &fs, const char *credencial) {
   fileSSID.close();
   if(!credCadastrada) return;
 
+  #ifdef DEBUG
+    imprimeTodosArquivos("apagaCredencial1");
+  #endif
   for(size_t i = 0; i < qtdArquivos; i ++) {
-    #ifdef DEBUG
-      imprimeTodosArquivos("apagaCredencial1");
-    #endif
     uint8_t linhaEscrita = 1;
     String novoConteudo = "";
     char caractereArquivo;
@@ -118,7 +115,7 @@ void apagaCredencial(fs::FS &fs, const char *credencial) {
   #endif
 }
 
-bool initWiFi(bool &deveIniciarAPSTA) {
+bool initWiFi() {
   #ifdef DEBUG
     imprimeTodosArquivos("initWifi");
   #endif
@@ -185,8 +182,7 @@ void setup() {
   pinMode(pinOut, OUTPUT);    // e a saída
   digitalWrite(pinOut, HIGH); // digitais
 
-  bool deveIniciarAPSTA = false;
-  evtConectado = srvRestart = apagarCredencial = false;
+  deveIniciarAPSTA = evtConectado = srvRestart = apagarCredencial = false;
 
   LittleFS.begin(); // inicia o sistema de arquivos
 
@@ -227,6 +223,7 @@ void setup() {
     uint8_t params = request->params();                         //  registra a quantidade de parametros
     #ifdef DEBUG
       Serial.print("qtd de parametros: "); Serial.println(params);
+      imprimeTodosArquivos("appendFile1");
     #endif
     for(uint8_t i = 0; i < params; i ++) {                      //  para cada parametro
       AsyncWebParameter* p = request->getParam(i);              //  registra o parametro
@@ -234,17 +231,18 @@ void setup() {
         Serial.print("parametro cadastrado: ");
         Serial.print(p->name()); Serial.print(' ');
       #endif
-        for(size_t j = 0; j < qtdArquivos; j ++) {
-          if(p->name() == paramVec[j]) {
-            #ifdef DEBUG
-              Serial.println(p->value()); 
-            #endif
-            parametrosVariaveis[j] = p->value();
-            appendFile(LittleFS, paths[j], parametrosVariaveis[j].c_str());
-          }
+      for(size_t j = 0; j < qtdArquivos; j ++) {
+        if(p->name() == paramVec[j]) {
+          #ifdef DEBUG
+            Serial.println(p->value());
+          #endif
+          parametrosVariaveis[j] = p->value();
+          appendFile(LittleFS, paths[j], parametrosVariaveis[j].c_str());
         }
+      }
     }
     #ifdef DEBUG
+      imprimeTodosArquivos("appendFile2");
       Serial.println("/-----/");
     #endif
     request->send(200, "text/plain", "Credenciais cadastradas!"); // gera uma página avisando que as credenciais foram atualizadas
@@ -267,12 +265,12 @@ void setup() {
     WiFi.mode(WIFI_STA);
     WiFi.softAPdisconnect(true);
     #ifdef DEBUG
-      Serial.print("AP desligada");
+      Serial.println("AP desligada");
     #endif
     request->send(200);
   });
 
-  if((!initWiFi(deveIniciarAPSTA)) or deveIniciarAPSTA) {                       // se não conseguir se conectar a uma rede
+  if((!initWiFi()) or deveIniciarAPSTA) {                       // se não conseguir se conectar a uma rede
     WiFi.mode(deveIniciarAPSTA ? WIFI_AP_STA : WIFI_AP);
     WiFi.softAP("ROBO_ELETROGATE", NULL); // inicia a AP
     #ifdef DEBUG
@@ -304,44 +302,43 @@ void loop() {
     evtConectado = false;                   // reseta a variavel de controle
   }
 
-  if(WiFi.getMode() == WIFI_STA and WiFi.status() == WL_CONNECTED and controleAutoRec == false)  { // se estiver conectado ao WiFi pela primeira vez neste loop
+  if(((WiFi.getMode() == WIFI_STA or WiFi.getMode() == WIFI_AP_STA) and WiFi.status() == WL_CONNECTED) and controleAutoRec == false)  { // se estiver conectado ao WiFi pela primeira vez neste loop
     WiFi.setAutoReconnect(true);  // ativa a autoreconexão
     WiFi.persistent(true);        // ativa a persistência
     controleAutoRec = true;       // indica que a robustez de WiFi já foi configurada após a reconexão
+    #ifdef DEBUG
+      Serial.println("primeira conexao desde que desconectou");
+    #endif
+    if(deveIniciarAPSTA) {
+      WiFi.mode(WIFI_AP_STA);
+      WiFi.softAP("ROBO_ELETROGATE", NULL); // inicia a AP
+      #ifdef DEBUG
+        Serial.println("abre AP para verificar IP");
+      #endif
+    }
   }
 
-  if(controleAutoRec == true and (WiFi.getMode() != WIFI_STA or WiFi.status() != WL_CONNECTED))   // se estiver desconectado ou em modo diferente de STA
+  if(controleAutoRec == true and ((WiFi.getMode() != WIFI_STA and WiFi.getMode() != WIFI_AP_STA) or WiFi.status() != WL_CONNECTED)) {  // se estiver desconectado ou em modo diferente de STA
     controleAutoRec = false;      // indica que houve a desconexão
+    #ifdef DEBUG
+      Serial.println("desconectou :c");
+    #endif
+  }
 
   if(millis() - tempoDecorrido >= intervaloWiFi) { // a cada intervaloWiFi ms
     tempoDecorrido = millis(); // atualiza o tempo
-    if(WiFi.status() != WL_CONNECTED and WiFi.getMode() == WIFI_STA) // se estiver desconectado e em modo STA
+    #ifdef DEBUG
+      Serial.println("confere conexao");
+    #endif
+    if(WiFi.status() != WL_CONNECTED and WiFi.getMode() == WIFI_STA) { // se estiver desconectado e em modo STA
       WiFi.reconnect();   // tenta reconectar
-    
+      #ifdef DEBUG
+        Serial.println("tentando reconectar a(crase) STA");
+      #endif
+    }
   }
 }
-//           onde eh usada (pra tentar reduzir globais | x -> eh global | v -> virou local| i -> inicializa mas n usa)
-// variavel              setup loop onWsEvent apagaCredencial initWifi
-// controleAutoRec       		   v	     		
-// evtConectado          	i	   x	     x                           -> usa em callback
-// srvRestart            	x	   x	                  		           -> usa em callback
-// controleWiFi          		   		                  	          v
-// credCadastrada        		   		                  v	          
-// apagarCredencial      	x	   x	                  	          	
-// IPouGatewayVazios     		   		                  	          v
-// deveIniciarAPSTA      	v	   		                  	          
-// tempoDecorrido        		   v	                  	          	
-// parametrosVariaveis[] 	x	   		                  	          x  -> usa em callback
-// selCred               	x	   x	                  	          	 -> pra compartilhar precisaria de funcao global
-// server                	x	   		                  	             -> precisa ser global
-// ws                    	x	   		                  	             -> precisa ser global
-// localIP               		   		                  	          v
-// localGateway          		   		                  	          v
-// subnet                		   		                  	          v
-
-// testar agora: se joystick continua funcionando e se a seleção entre sta, ap_sta e ap está funcionando de acordo com o que ocorre na conexao
 
 // se desconectar, reconectar e não tiver escolhido o IP manualmente, abrir a AP pra ver o IP
 // adicionar uma forma de resetar as credenciais pelo hardware (provavelmente enviar alguma coisa pela uno para o rx do esp)
 // colocar debug nas estruturas referentes à robustes do wifi, mesmo que estejam funcionando legal
-// convem passar littleFs como argumento? Permite usar SPIFFS, né. 
