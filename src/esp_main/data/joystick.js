@@ -104,6 +104,8 @@ function stopDrawing() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     background();
     joystick(width / 2, height / 2);
+    for(let i = 0; i < 15; i ++)
+      send(0, 0)
 }
 
 function Draw(t) {
@@ -120,7 +122,5 @@ function Draw(t) {
 
         velocidade = Math.round((100 * Math.sqrt(Math.pow(x_abs - x_orig, 2) + Math.pow(y_abs - y_orig, 2))) / radius),
         send(velocidade, angulo_graus);
-    } else {
-        send(0, 0);
     }
 }

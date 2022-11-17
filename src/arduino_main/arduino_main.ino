@@ -25,7 +25,8 @@ void loop() {
   if(!digitalRead(pinIn)) {           // se detectar nova conexão à página
     digitalWrite(pinOut, LOW);        // avisa que detectou
     delay(100);                       // aguarda 100 milisegundos
-    while(Serial.read() != -1);       // esvazia o buffer
+    while(Serial.available())
+      Serial.read();                  // esvazia o buffer
     digitalWrite(pinOut, HIGH);       // prepara para a proxima conexão
   }
 

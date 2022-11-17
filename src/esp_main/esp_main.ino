@@ -71,6 +71,9 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
   else if(type == WS_EVT_CONNECT) { // se for a conexao à pagina
     digitalWrite(pinOut, LOW);      // indica colocando a saída em nível baixo
     evtConectado = true;            // registra que conectou
+    #ifdef DEBUG
+      Serial.println("conectado ao websocket");
+    #endif
   }
 } 
 
@@ -260,6 +263,7 @@ void setup() {
   server.begin();     // inicia o servidor
 
   #ifdef DEBUG
+    Serial.flush();
     Serial.end();
   #endif
   pinMode(pinRX, INPUT_PULLUP);
