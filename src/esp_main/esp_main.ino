@@ -7,8 +7,10 @@
 #include <ESPAsyncTCP.h>
 #include <LittleFS.h>
 #include "constantes.h"
+#include "paginaBase.h"
 
 //#define DEBUG
+//#define DEBUG_LOOP
 
 bool evtConectado, srvRestart, apagarCredencial, deveIniciarAPSTA;
 
@@ -194,35 +196,7 @@ void setup() {
   ws.onEvent(onWsEvent);  // indica qual função deve ser chamada ao perceber um evento
   server.addHandler(&ws); // indica que o servidor será tratado de acordo com o WebSocket
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){ // quando alguém se conectar ao servidor do joystick
-      request->send(LittleFS, "/index.html");  });             // envia o script salvo em /index.html
-
-  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(LittleFS, "/style.css", "text/css"); });
-  
-  server.on("/joystick.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/joystick.js", "text/javascript"); });
-
-  server.on("/icone.ico", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/icone.ico", "icone/ico"); });
-
-  server.on("/escritaHeader.png", HTTP_GET, [](AsyncWebServerRequest *request){
-  request->send(LittleFS, "/escritaHeader.png", "image/png"); });
-
-  server.on("/logoFundo.png", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/logoFundo.png", "image/png"); });
-
-  server.on("/loja.png", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/loja.png", "image/png"); });
-
-  server.on("/blog.png", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(LittleFS, "/blog.png", "image/png"); });
-  
-  server.on("/WM", HTTP_GET, [](AsyncWebServerRequest *request) {  // quando se conectar à pagina do gerenciador
-    request->send(LittleFS, "/wifimanager.html", "text/html", false, modelos); }); // envia /wifimanager.html
-  
-  server.on("/managerStyle.css", HTTP_GET, [](AsyncWebServerRequest *request) { // indica o arquivo
-    request->send(LittleFS, "/managerStyle.css", "text/css"); });               // de elementos estéticos
+  constroiPag(server, LittleFS);
   
   server.on("/Cadastra", HTTP_POST, [](AsyncWebServerRequest *request) {
     uint8_t params = request->params();                         //  registra a quantidade de parametros
@@ -318,13 +292,13 @@ void loop() {
     WiFi.setAutoReconnect(true);  // ativa a autoreconexão
     WiFi.persistent(true);        // ativa a persistência
     controleAutoRec = true;       // indica que a robustez de WiFi já foi configurada após a reconexão
-    #ifdef DEBUG
+    #ifdef DEBUG_LOOP
       Serial.println("primeira conexao desde que desconectou");
     #endif
     if(deveIniciarAPSTA) {
       WiFi.mode(WIFI_AP_STA);
       WiFi.softAP("ROBO_ELETROGATE", NULL); // inicia a AP
-      #ifdef DEBUG
+      #ifdef DEBUG_LOOP
         Serial.println("abre AP para verificar IP");
       #endif
     }
@@ -332,23 +306,21 @@ void loop() {
 
   if(controleAutoRec == true and ((WiFi.getMode() != WIFI_STA and WiFi.getMode() != WIFI_AP_STA) or WiFi.status() != WL_CONNECTED)) {  // se estiver desconectado ou em modo diferente de STA
     controleAutoRec = false;      // indica que houve a desconexão
-    #ifdef DEBUG
+    #ifdef DEBUG_LOOP
       Serial.println("desconectou :c");
     #endif
   }
 
   if(millis() - tempoDecorrido >= intervaloWiFi) { // a cada intervaloWiFi ms
     tempoDecorrido = millis(); // atualiza o tempo
-    #ifdef DEBUG
+    #ifdef DEBUG_LOOP
       Serial.println("confere conexao");
     #endif
     if(WiFi.status() != WL_CONNECTED and WiFi.getMode() == WIFI_STA) { // se estiver desconectado e em modo STA
       WiFi.reconnect();   // tenta reconectar
-      #ifdef DEBUG
+      #ifdef DEBUG_LOOP
         Serial.println("tentando reconectar a(crase) STA");
       #endif
     }
   }
 }
-
-// adicionar uma forma de resetar as credenciais pelo hardware (provavelmente enviar alguma coisa pela uno para o rx do esp)

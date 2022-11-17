@@ -1,3 +1,6 @@
+#ifndef CONST_H
+#define CONST_H
+
 const uint8_t pinIn = 2;
 const uint8_t pinOut = 0;
 const uint8_t pinRX = 3;
@@ -11,3 +14,5 @@ const char caractereFinal = '\n';
 const char *paramInputCred = "cred";
 const char paramVec[][8] = {"ssid", "pass", "ip", "gateway"};
 const char paths[][13] = {"/ssid.txt" ,"/pass.txt" ,"/ip.txt" ,"/gateway.txt"};
+
+#endif
