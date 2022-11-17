@@ -1,5 +1,6 @@
 const uint8_t pinIn = 2;
 const uint8_t pinOut = 0;
+const uint8_t pinRX = 3;
 const uint8_t tamanhoMaximoDados = 7;
 const uint8_t iSSID = 0, iPass = 1, iIP = 2, iGateway = 3;
 const unsigned tempoInicioWiFi = 5000;

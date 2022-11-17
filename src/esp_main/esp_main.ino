@@ -115,6 +115,11 @@ void apagaCredencial(fs::FS &fs, const char *credencial) {
   #endif
 }
 
+void resetaCredenciais(fs::FS &fs) {
+  for(size_t i = 0; i < qtdArquivos; i ++)
+    fs.remove(paths[i]);
+}
+
 bool initWiFi() {
   #ifdef DEBUG
     imprimeTodosArquivos("initWifi");
@@ -280,9 +285,16 @@ void setup() {
   
   server.begin();     // inicia o servidor
 
-  #ifndef DEBUG
-  Serial.begin(9600); // inicia a serial
+  #ifdef DEBUG
+    Serial.end();
   #endif
+  pinMode(pinRX, INPUT_PULLUP);
+  if(!digitalRead(pinRX)) {
+    resetaCredenciais(LittleFS);
+    ESP.restart();
+  }
+
+  Serial.begin(9600); // inicia a serial
 }
 
 void loop() {
@@ -339,6 +351,4 @@ void loop() {
   }
 }
 
-// se desconectar, reconectar e não tiver escolhido o IP manualmente, abrir a AP pra ver o IP
 // adicionar uma forma de resetar as credenciais pelo hardware (provavelmente enviar alguma coisa pela uno para o rx do esp)
-// colocar debug nas estruturas referentes à robustes do wifi, mesmo que estejam funcionando legal
