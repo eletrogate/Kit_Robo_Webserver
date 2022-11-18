@@ -12,6 +12,7 @@ const uint8_t qtdArquivos = 4;
 const char caractereInicio = ':';
 const char caractereFinal = '\n';
 const char *paramInputCred = "cred";
+const char *nomeAP = "ROBO_ELETROGATE", *senhaAP = "123456789";
 const char paramVec[][8] = {"ssid", "pass", "ip", "gateway"};
 const char paths[][13] = {"/ssid.txt" ,"/pass.txt" ,"/ip.txt" ,"/gateway.txt"};
 

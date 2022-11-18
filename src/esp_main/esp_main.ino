@@ -254,7 +254,7 @@ void setup() {
 
   if((!initWiFi()) or deveIniciarAPSTA) {                // se não conseguir se conectar a uma rede ou se conectar sem configurar o IP
     WiFi.mode(deveIniciarAPSTA ? WIFI_AP_STA : WIFI_AP); // configura o wifi de acordo com o caso
-    WiFi.softAP("ROBO_ELETROGATE", NULL);                // inicia o AP
+    WiFi.softAP(nomeAP, senhaAP);                // inicia o AP
     #ifdef DEBUG
       Serial.print("modo: "); Serial.println(WiFi.getMode());
     #endif
@@ -301,7 +301,7 @@ void loop() {
     #endif
     if(deveIniciarAPSTA) {                  // se for necessario iniciar o AP para verificar o IP
       WiFi.mode(WIFI_AP_STA);               // configura para APSTA
-      WiFi.softAP("ROBO_ELETROGATE", NULL); // inicia o AP
+      WiFi.softAP(nomeAP, senhaAP); // inicia o AP
       #ifdef DEBUG_LOOP
         Serial.println("abre AP para verificar IP");
       #endif
