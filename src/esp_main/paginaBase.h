@@ -31,6 +31,9 @@ void constroiPag(AsyncWebServer &server, fs::FS &fs) {
 
   server.on("/blog.png", HTTP_GET, [&fs](AsyncWebServerRequest *request){
     request->send(fs, "/blog.png", "image/png"); });
+
+  server.on("/wifi.png", HTTP_GET, [&fs](AsyncWebServerRequest *request){
+    request->send(fs, "/wifi.png", "image/png"); });
   
   server.on("/WM", HTTP_GET, [&fs](AsyncWebServerRequest *request) {  // quando se conectar à pagina do gerenciador
     request->send(fs, "/wifimanager.html", "text/html", false, modelos); }); // envia /wifimanager.html

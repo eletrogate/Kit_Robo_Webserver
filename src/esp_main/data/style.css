@@ -8,6 +8,10 @@ body {
   background-color: #1037c1;
 }
 
+#wm:active {
+  transform:scale(0.95);
+}
+
 #loja:active {
   transform:scale(0.95);
 }
