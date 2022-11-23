@@ -9,7 +9,7 @@ String modelos(const String& var);
 
 void constroiPag(AsyncWebServer &server, fs::FS &fs) {
   server.on("/", HTTP_GET, [&fs](AsyncWebServerRequest *request){ // quando alguém se conectar ao servidor do joystick
-    request->send(fs, "/index.html");  });             // envia o script salvo em /index.html
+    request->send(fs, "/index.html");  });                        // envia o script salvo em /index.html
 
   server.on("/style.css", HTTP_GET, [&fs](AsyncWebServerRequest *request) {
     request->send(fs, "/style.css", "text/css"); });
@@ -35,11 +35,11 @@ void constroiPag(AsyncWebServer &server, fs::FS &fs) {
   server.on("/wifi.png", HTTP_GET, [&fs](AsyncWebServerRequest *request){
     request->send(fs, "/wifi.png", "image/png"); });
   
-  server.on("/WM", HTTP_GET, [&fs](AsyncWebServerRequest *request) {  // quando se conectar à pagina do gerenciador
+  server.on("/WM", HTTP_GET, [&fs](AsyncWebServerRequest *request) {         // quando se conectar à pagina do gerenciador
     request->send(fs, "/wifimanager.html", "text/html", false, modelos); }); // envia /wifimanager.html
   
-  server.on("/managerStyle.css", HTTP_GET, [&fs](AsyncWebServerRequest *request) { // indica o arquivo
-    request->send(fs, "/managerStyle.css", "text/css"); });               // de elementos estéticos
+  server.on("/managerStyle.css", HTTP_GET, [&fs](AsyncWebServerRequest *request) {
+    request->send(fs, "/managerStyle.css", "text/css"); });
 }
 
 #endif

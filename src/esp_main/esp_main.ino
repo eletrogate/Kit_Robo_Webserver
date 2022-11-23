@@ -227,8 +227,8 @@ void setup() {
       imprimeTodosArquivos("appendFile2");
       Serial.println("/-----/");
     #endif
-    request->send(200, "text/plain", "Credenciais cadastradas!"); // gera uma página avisando que as credenciais foram atualizadas
-    srvRestart = true;                                            // registra que o chip deve reiniciar
+    request->redirect("/WM"); // redireciona para o gerenciador
+    srvRestart = true;        // registra que o chip deve reiniciar
   });
 
   server.on("/Apaga", HTTP_POST, [](AsyncWebServerRequest *request) {              // quando receber solicitacao post com esta url
@@ -239,8 +239,8 @@ void setup() {
       #endif
       apagarCredencial = true; // registra que deverá apagar o parametro
     }
-    request->send(200, "text/plain", "Credenciais apagadas!"); // gera uma página avisando que as credenciais foram atualizadas
-    srvRestart = true;                                         // registra que o chip deve reiniciar
+    request->redirect("/WM"); // redireciona para o gerenciador
+    srvRestart = true;        // registra que o chip deve reiniciar
   });
 
   server.on("/dAP", HTTP_GET, [](AsyncWebServerRequest *request) { // quando receber solicitacao get com esta url
