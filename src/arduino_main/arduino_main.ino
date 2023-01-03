@@ -3,13 +3,15 @@
 
 #include "constantes.h" // inclui cabeçalho com as constantes
 
+//#define DEBUG
+
 bool dado_novo;                                       // declara as
 uint8_t v, a, r, vel_int, val_mA, val_mB, quadrante;  // variaveis que serao
-char vel[4], angulo[4], recebido[16], c;              // utilizada ao longo
-unsigned  ang_int;                                    // do programa
+char vel[5], angulo[5], recebido[tamRecebido], c;     // utilizada ao longo
+unsigned ang_int;                                     // do programa
 
 bool caractereValido(char c)  {
-  return ((c >= '0' && c <= '9') || c == ' ');  // verifica se o caractere recebido do ESP é um número ou um espaço
+  return ((c >= '0' and c <= '9') or c == ' ');  // verifica se o caractere recebido do ESP é um número ou um espaço
 }
 
 void setup() {
@@ -30,19 +32,24 @@ void loop() {
     digitalWrite(pinOut, HIGH);       // prepara para a proxima conexão
   }
 
-  if(Serial.available() && Serial.read() == caractereInicio) {  // se há dados e o primeiro é caractereInicio
-  dado_novo = true;                                   // armazena que há dado novo
-    r = -1;                                           // prepara o indice de recebido
-    while((c = Serial.read()) != caractereFinal)      // enquanto nao for o caractere finalizador
-      if(caractereValido(c))                          // se for um caractere valido
-        recebido[++ r] = c;                           // o armazena a incrementa o indice
+  if(Serial.available() and Serial.read() == caractereInicio) {  // se há dados e o primeiro é caractereInicio
+    dado_novo = true;                                   // armazena que há dado novo
+    r = 0xFF;                                           // prepara o indice de recebido
+    while((c = Serial.read()) != caractereFinal)        // enquanto nao for o caractere finalizador
+      if(caractereValido(c) and ((r < tamRecebido - 1) or r == 0xFF))  // se for um caractere valido
+        recebido[++ r] = c;                             // o armazena a incrementa o indice
 
-    for(v = 0; recebido[v] != caractereSepara; v ++)  // do primeiro caractere até caractereSepara
+    #ifdef DEBUG
+    for(uint8_t iteradorDebug = 0; iteradorDebug < r + 1; iteradorDebug ++) Serial.print(recebido[iteradorDebug]);
+    Serial.print('-');
+    #endif
+
+    for(v = 0; recebido[v] != caractereSepara and (v < 5); v ++)  // do primeiro caractere até caractereSepara
       vel[v] = recebido[v];                           // copia-o para vel
     vel[v] = '\0';                                    // insere o caractere nulo na posição posterior à do ultimo copiado
 
-    for(a = v + 1; a <= r; a ++)                      // do primeiro após caractereSepara até o ultimo caractere valido de recebido
-      angulo[a - v - 1] = recebido[a];                // copia-o para angulo - v - 1 é a diferença entre a posição de recebido e a de angulo
+    for(a = v + 1; a <= r; a ++)        // do primeiro após caractereSepara até o ultimo caractere valido de recebido
+      angulo[a - v - 1] = recebido[a];  // copia-o para angulo - v - 1 é a diferença entre a posição de recebido e a de angulo
 
     angulo[r - v - 1 < 3 ?      // angulo recebeu até 3 caracteres?
             r - v : 3] = '\0';  // se sim, insere o caractere nulo na posição posterior à do ultimo copiado. se não, o insere na ultima posição de angulo
@@ -54,7 +61,7 @@ void loop() {
 
     if(ang_int < 90) quadrante = 1; else if(ang_int < 180) quadrante = 2; else if(ang_int < 270) quadrante = 3; else if(ang_int < 360) quadrante = 4; // determina em qual quadrante o joystick está
     
-    if(quadrante == 1 || quadrante == 4) {                                      // se estiver na direita
+    if(quadrante == 1 or quadrante == 4) {                                      // se estiver na direita
       val_mB = (uint8_t) vel_int;                                               // o motor B recebe a velocidade indicada no joystick
       val_mA = (uint8_t) (vel_int * (1.0 - cos(ang_int * PI / 180.0) / 2.0)); } // o motor A recebe esta velocidade reduzida proporcionalmente ao cosseno do ângulo
     else {                                                                      // caso não
@@ -67,5 +74,9 @@ void loop() {
     else {                                              // senão
       analogWrite(in2, 0); analogWrite(in1, val_mA);    // aciona os motores
       analogWrite(in4, 0); analogWrite(in3, val_mB);  } // para trás
+
+    #ifdef DEBUG
+      Serial.print("vel: "); Serial.print(vel_int); Serial.print("ang: "); Serial.println(ang_int);
+    #endif
   } dado_novo = false;                                  // indica que o dado já foi tratado
 }

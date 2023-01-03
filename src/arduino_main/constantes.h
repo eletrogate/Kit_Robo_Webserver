@@ -4,6 +4,7 @@ const uint8_t in3 = 9;
 const uint8_t in4 = 10;
 const uint8_t pinIn = 4;
 const uint8_t pinOut = 2;
+const uint8_t tamRecebido = 16;
 const char caractereInicio = ':';
 const char caractereSepara = ' ';
 const char caractereFinal = '\n';
