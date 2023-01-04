@@ -1,14 +1,9 @@
 /* @autor: Eletrogate
    @licença: GNU GENERAL PUBLIC LICENSE Version 3 */
 
-#include "constantes.h" // inclui cabeçalho com as constantes
-
 //#define DEBUG
 
-bool dado_novo;                                       // declara as
-uint8_t v, a, r, vel_int, val_mA, val_mB, quadrante;  // variaveis que serao
-char vel[5], angulo[5], recebido[tamRecebido], c;     // utilizada ao longo
-unsigned ang_int;                                     // do programa
+#include "constantes.h" // inclui cabeçalho com as constantes
 
 bool caractereValido(char c)  {
   return ((c >= '0' and c <= '9') or c == ' ');  // verifica se o caractere recebido do ESP é um número ou um espaço
@@ -16,7 +11,7 @@ bool caractereValido(char c)  {
 
 void setup() {
   delay(500);                 // aguarda o sistema estabilizar
-  Serial.begin(9600);         // inicia a serial
+  Serial.begin(115200);       // inicia a serial
   pinMode(pinIn, INPUT);      // configura e inicia
   pinMode(pinOut, OUTPUT);    // as entradas
   digitalWrite(pinOut, LOW);  // e saídas
@@ -24,9 +19,19 @@ void setup() {
 
 void loop() {
 
-  if(!digitalRead(pinIn)) {           // se detectar nova conexão à página
+  static bool dado_novo;                                       // declara as
+  static uint8_t v, a, r, vel_int, val_mA, val_mB, quadrante;  // variaveis que serao
+  static char vel[5], angulo[5], recebido[tamRecebido], c;     // utilizada ao longo
+  static unsigned ang_int;                                     // do programa
+
+  if(!digitalRead(pinIn)) {           // se deve limpar o buffer
     digitalWrite(pinOut, LOW);        // avisa que detectou
-    delay(100);                       // aguarda 100 milisegundos
+    uint8_t saidas[] = {in1, in2, in3, in4};
+    for(uint8_t i = 0; i < sizeof(saidas); i ++)
+      analogWrite(saidas[i], 0); //freia os motores
+    #ifdef DEBUG
+      Serial.println("mandou freiar");
+    #endif
     while(Serial.available())
       Serial.read();                  // esvazia o buffer
     digitalWrite(pinOut, HIGH);       // prepara para a proxima conexão
@@ -37,12 +42,8 @@ void loop() {
     r = 0xFF;                                           // prepara o indice de recebido
     while((c = Serial.read()) != caractereFinal)        // enquanto nao for o caractere finalizador
       if(caractereValido(c) and ((r < tamRecebido - 1) or r == 0xFF))  // se for um caractere valido
-        recebido[++ r] = c;                             // o armazena a incrementa o indice
+        recebido[++ r] = c;                             // o armazena e incrementa o indice
 
-    #ifdef DEBUG
-    for(uint8_t iteradorDebug = 0; iteradorDebug < r + 1; iteradorDebug ++) Serial.print(recebido[iteradorDebug]);
-    Serial.print('-');
-    #endif
 
     for(v = 0; recebido[v] != caractereSepara and (v < 5); v ++)  // do primeiro caractere até caractereSepara
       vel[v] = recebido[v];                           // copia-o para vel
@@ -75,8 +76,5 @@ void loop() {
       analogWrite(in2, 0); analogWrite(in1, val_mA);    // aciona os motores
       analogWrite(in4, 0); analogWrite(in3, val_mB);  } // para trás
 
-    #ifdef DEBUG
-      Serial.print("vel: "); Serial.print(vel_int); Serial.print("ang: "); Serial.println(ang_int);
-    #endif
   } dado_novo = false;                                  // indica que o dado já foi tratado
 }

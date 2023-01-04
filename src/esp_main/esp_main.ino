@@ -12,7 +12,7 @@
 //#define DEBUG
 //#define DEBUG_LOOP
 
-bool evtConectado, srvRestart, apagarCredencial, deveIniciarAPSTA; //declara booleanos globais
+bool limpaBuffer, srvRestart, apagarCredencial, deveIniciarAPSTA; //declara booleanos globais
 
 String parametrosVariaveis[qtdArquivos];  // strings variaveis
 String selCred;                           // globais
@@ -64,13 +64,22 @@ bool caractereValido(char c) {
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)  { // definição da tratativa de evento de servidor assíncrono
   if(type == WS_EVT_DATA) {                                                        // se for o recebimento de dados e o Arduino puder receber
     char *data_ = (char*) data;                                                    // registra todos os dados recebidos do servidor
-    Serial.write(caractereInicio);                                                 // envia o caractere de inicio de transmissao
-    for(uint8_t i = 0; caractereValido(data_[i]) and i < tamanhoMaximoDados; i ++) // enquanto for um caractere valido e o tamanho for inferior ao maximo
-      Serial.write(data_[i]);                                                      // envia este dado na serial
-    Serial.write(caractereFinal); }                                                // envia o caractere final para tratamento
-  else if(type == WS_EVT_CONNECT) { // se for a conexao à pagina
+    if(data_[0] == '0') {
+      digitalWrite(pinOut, LOW);  // indica colocando a saída em nível baixo
+      limpaBuffer = true;         // registra que deve limpar o buffer
+      Serial.println(":0 0");     // envia valores nulos
+      #ifdef DEBUG
+        Serial.println("solta joystick");
+      #endif
+    } else {
+      Serial.write(caractereInicio);                                                 // envia o caractere de inicio de transmissao
+      for(uint8_t i = 0; caractereValido(data_[i]) and i < tamanhoMaximoDados; i ++) // enquanto for um caractere valido e o tamanho for inferior ao maximo
+        Serial.write(data_[i]);                                                      // envia este dado na serial
+      Serial.write(caractereFinal);                                                  // envia o caractere final para tratamento
+    }
+  } else if(type == WS_EVT_CONNECT) { // se for a conexao à pagina
     digitalWrite(pinOut, LOW);      // indica colocando a saída em nível baixo
-    evtConectado = true;            // registra que conectou
+    limpaBuffer = true;            // registra que deve limpar o buffer
     #ifdef DEBUG
       Serial.println("conectado ao websocket");
     #endif
@@ -185,14 +194,14 @@ bool initWiFi() {
 
 void setup() {
   #ifdef DEBUG
-  Serial.begin(9600);
+  Serial.begin(115200);
   #endif
 
   pinMode(pinIn, INPUT);      // inicia a entrada
   pinMode(pinOut, OUTPUT);    // e a saída
   digitalWrite(pinOut, HIGH); // digitais
 
-  deveIniciarAPSTA = evtConectado = srvRestart = apagarCredencial = false; // inicializa variaveis de controle
+  deveIniciarAPSTA = limpaBuffer = srvRestart = apagarCredencial = false; // inicializa variaveis de controle
 
   LittleFS.begin(); // inicia o sistema de arquivos
 
@@ -272,7 +281,7 @@ void setup() {
     ESP.restart();               // reinicia o ESP
   }
 
-  Serial.begin(9600); // inicia a serial
+  Serial.begin(115200); // inicia a serial
 }
 
 void loop() {
@@ -287,9 +296,9 @@ void loop() {
     apagarCredencial = false;                   // registra que apagou
   }
 
-  if(evtConectado and digitalRead(pinIn)) { // se houve conexão à página
-    digitalWrite(pinOut, HIGH);             // envia um sinal digital de nível alto
-    evtConectado = false;                   // reseta a variavel de controle
+  if(limpaBuffer and digitalRead(pinIn)) { // se deve limpar o buffer
+    digitalWrite(pinOut, HIGH);            // envia um sinal digital de nível alto
+    limpaBuffer = false;                   // reseta a variavel de controle
   }
 
   if(((WiFi.getMode() == WIFI_STA or WiFi.getMode() == WIFI_AP_STA) and WiFi.status() == WL_CONNECTED) and controleAutoRec == false)  { // se estiver conectado ao WiFi pela primeira vez neste loop
